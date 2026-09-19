@@ -1,4 +1,4 @@
-name: source-is-develop
+name: source-is-dev
 
 on:
   pull_request:
@@ -12,8 +12,8 @@ jobs:
       - name: Validate source branch
         shell: bash
         run: |
-          if [ "${{ github.head_ref }}" != "develop" ]; then
-            echo "::error::PR в main может быть только из ветки develop. Источник: ${{ github.head_ref }}"
+          if [ "${{ github.head_ref }}" != "dev" ]; then
+            echo "::error::PR в main может быть только из ветки dev. Источник: ${{ github.head_ref }}"
             exit 1
           fi
-          echo "OK: PR из develop"
+          echo "OK: PR из dev"
