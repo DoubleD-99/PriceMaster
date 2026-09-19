@@ -1,0 +1,19 @@
+name: source-is-dev
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate source branch
+        shell: bash
+        run: |
+          if [ "${{ github.head_ref }}" != "dev" ]; then
+            echo "::error::PR в main может быть только из ветки dev. Источник: ${{ github.head_ref }}"
+            exit 1
+          fi
+          echo "OK: PR из dev"
