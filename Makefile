@@ -23,7 +23,7 @@ PY      ?= .venv/bin/python
 endif
 PYTEST  ?= $(PY) -m pytest
 
-.PHONY: help install db db-down api seed bot test dc-up dc-down local
+.PHONY: help install db db-down api seed test dc-up dc-down
 
 # Help text is ASCII-only on purpose: it renders correctly under any
 # terminal/codepage (cmd cp866, PowerShell, WSL, Git Bash) without tricks.
@@ -35,10 +35,8 @@ define _HELP_MESSAGE
     db-down     Stop the PostgreSQL container (data is kept)
     seed        Fill DB with synthetic data (3-6 months + external factors)
     api         Run FastAPI locally with auto-reload (port 8000)
-    bot         Run the Telegram bot (API must be running)
-    local       Run API + bot locally (bot in background)
     test        Run unit + integration tests
-    dc-up       Start all Docker services (db, api, bot, llm)
+    dc-up       Start all Docker services (db, api)
     dc-down     Stop Docker services
 endef
 
@@ -61,23 +59,10 @@ api: ## Запустить FastAPI локально с автоперезагр�
 seed: ## Заполнить БД синтетическими данными (3-6 месяцев + внешние факторы)
 	$(PY) -m backend.seed_db
 
-bot: ## Запустить Telegram-bot (должен быть запущен API)
-	$(PY) -m bot
-
-ifdef OS
-local: ## Запустить API + бота локально (бот в фоне, API в foreground)
-	@start "PriceMaster-bot" $(PY) -m bot
-	$(PY) -m uvicorn backend.app.main:app --host $(API_HOST) --port $(API_PORT) --reload
-else
-local: ## Запустить API + бота локально (бот в фоне, API в foreground)
-	$(PY) -m bot &
-	$(PY) -m uvicorn backend.app.main:app --host $(API_HOST) --port $(API_PORT) --reload
-endif
-
 test: ## Прогнать unit + integration тесты
 	$(PYTEST) -v
 
-dc-up: ## Поднять все сервисы в Docker (db, api, bot, llm)
+dc-up: ## Поднять все сервисы в Docker (db, api)
 	docker compose up --build
 
 dc-down: ## Остановить Docker-сервисы
