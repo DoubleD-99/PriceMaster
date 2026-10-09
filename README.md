@@ -58,7 +58,7 @@ PriceMaster/
 │   ├── alembic/                  # миграции (см. alembic/README.md)
 │   ├── seed_db.py                # заполнение БД на 3–6 месяцев
 │   └── Dockerfile
-├── web/                          # React PWA (заглушка, см. web/README.md)
+├── web/                          # React PWA (React + Vite + TS, см. web/README.md)
 ├── tests/                        # unit/ + integration/ (заглушки под SDD)
 ├── docs/                         # SDD.md, agents.md, диаграммы
 ├── requirements.txt              # зависимости рантайма
@@ -107,11 +107,14 @@ PriceMaster/
 
 ## 6. Быстрый старт
 
-### 6.1 Всё сразу — Docker (db + api)
+### 6.1 Всё сразу — Docker (db + api + web)
 
 ```bash
-make dc-up     # docker compose up --build: поднимает db + api вместе
+make dc-up     # docker compose up --build: поднимает db + api + web вместе
 ```
+
+После старта: API — http://localhost:8000 (док `/docs`), PWA —
+http://localhost:8080.
 
 Остановка: **Ctrl+C** (данные в volume сохраняются); полностью: `make dc-down`.
 Полный сброс БД (вместе с томами): `docker compose down -v` (осторожно).
@@ -131,29 +134,38 @@ make db        # поднять только БД на :5432
 Терминал 2 — API:
 
 ```bash
-make api       # FastAPI на http://127.0.0.1:8000, документация /docs
+make api       # FastAPI на http://127.0.0.1:8000
 ```
 
 Остановка — **Ctrl+C** в том же терминале; `make db-down` гасит только контейнер БД (данные сохраняются).
+
+Терминал 3 — фронтенд (Vite dev-сервер, проксирует `/api` на API из терминала 2):
+
+```bash
+make web       # PWA на http://localhost:5173
+```
 
 ### 6.3 С нуля (полный чеклист локально)
 
 ```bash
 python -m venv .venv
-make install
 cp .env.example .env   # заполнить секреты
+make install           # терминал 1: зависимости бэкенда
 make db                # терминал 1: PostgreSQL
 make seed              # терминал 1: синтетические данные
 make api               # терминал 2: API
+make web-install       # терминал 3: зависимости фронтенда
+make web               # терминал 3: PWA
 ```
 
-Команды: `make help`, `make test`, `make dc-up`, `make dc-down`.
+Команды: `make help`, `make test`, `make web-build`, `make dc-up`, `make dc-down`.
 
 ---
 
 ## 7. Запуск в Docker (compose)
 
-`make dc-up` поднимает `db` (PostgreSQL :5432) и `api` (FastAPI :8000) вместе;
+`make dc-up` поднимает `db` (PostgreSQL :5432), `api` (FastAPI :8000) и
+`web` (nginx :8080, раздаёт PWA и проксирует API на `api`) вместе;
 переменные берутся из `.env`. Разбор всех способов — раздел 6.
 
 ---

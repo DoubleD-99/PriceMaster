@@ -1,5 +1,5 @@
 # =========================================================================
-# PriceMaster — docker-compose: db, api (SDD, Приложение A, раздел 7)
+# PriceMaster — docker-compose: db, api, web (SDD, Приложение A, раздел 7)
 # =========================================================================
 
 services:
@@ -39,6 +39,17 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  # --- React PWA (nginx: статика + proxy /api → api) ---
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
 
 volumes:
   pgdata:
