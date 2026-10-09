@@ -10,3 +10,21 @@
 
 Здесь же описаны имена полей, чтобы все модули брали настройки из одного места.
 """
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    DATABASE_URL: str = "postgresql+asyncpg://user:pass@db:5432/pricemaster"
+    LLM_API_URL: str = ""
+    LLM_API_KEY: str = ""
+    LLM_MODEL: str = ""
+    JWT_SECRET_KEY: str = "FORTUNA812"
+    ACCESS_KEY: str = "secret"
+    API_HOST: str = "0.0.0.0"
+    API_PORT: int = 8000
+
+
+settings = Settings()
