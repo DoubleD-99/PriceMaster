@@ -49,7 +49,20 @@ Python — из `.venv` (Makefile подставляет сам). CI: `.github/w
 
 *   **`.env` никогда не коммитится и не читается в ответах** — только `.env.example`.
 *   **Числа для рекомендаций** считаются только в `backend/app/services/calculations.py` — LLM арифметику не выполняет (см. `docs/agents.md`, правило 2). Не переносить расчёты в промпты/код агента.
-*   **Ветки:** PR в `main` — только из `dev` (проверяется CI `source-is-develop.yml`).
-*   Соблюдать стиль: `ruff check` и `ruff format` должны проходить до коммита.
-*   Коммит, push, PR — только по явной просьбе пользователя.
 *   Новые зависимости — только в `requirements.txt` / `requirements-dev.txt`.
+
+### 4.1 Ветки и коммиты
+
+Модель ветвления (проверяется CI, `.github/workflows/`):
+*   `main` — релизная ветка; **прямые коммиты и push в неё запрещены**.
+*   `dev` — интеграционная; PR в `main` разрешён **только из `dev`** (`source-is-develop.yml`).
+*   Фича-ветки создаются **от `dev`** и вливаются обратно в `dev` коротким PR.
+    Прямые коммиты в `dev` — только для тривиальных правок, не пересекающихся с другими.
+
+Имена веток: `<type>/<short-desc>` — латиница, kebab-case, нижний регистр.
+`<type>`: `feature`, `fix`, `hotfix`, `chore`, `docs`, `refactor`.
+Примеры текущей итерации: `feature/backend-core-wms`, `feature/ai-tools-design`, `feature/web-pwa-init`.
+
+Коммиты — **Conventional Commits** (`feat:`, `fix:`, `ci:` ...), сообщение на английском, императив.
+Перед коммитом обязательны `ruff check .` и `ruff format --check .`.
+Коммит, push, PR — только по явной просьбе пользователя.
