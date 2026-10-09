@@ -25,3 +25,8 @@ venv/
 *.db
 *.sqlite3
 logs/
+
+# --- Node.js / фронтенд (web/) ---
+node_modules/
+web/dist/
+web/dev-dist/
