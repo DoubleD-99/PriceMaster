@@ -1,8 +1,9 @@
-"""Входная точка FastAPI-приложения.
+"""Входная точка FastAPI-приложения (SDD, раздел 3.1).
 
-Здесь создаётся экземпляр `app`, подключаются все роутеры (products, sales,
-recommendations, price_history), веб-дашборд (FastAPI templates) и, при наличии
-реализации, `seed_db` для работы в Docker.
+Здесь создаётся экземпляр `app` и подключаются роутеры api/v1
+(Приложение A, раздел 5): auth, stores, products, inventory, wms,
+barcodes, recommendations, analytics — пути монтируются без общего
+префикса, ровно как в спецификации.
 
 Запуск (из корня репозитория):
     python -m uvicorn backend.app.main:app --reload
