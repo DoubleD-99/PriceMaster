@@ -23,6 +23,7 @@ from decimal import Decimal
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     Float,
@@ -59,8 +60,10 @@ class Product(Base):
 class StoreProduct(Base):
     __tablename__ = "store_products"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
-    store_id: Mapped[int] = mapped_column(ForeignKey("stores.id"))
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id", ondelete="restrict")
+    )
+    store_id: Mapped[int] = mapped_column(ForeignKey("stores.id", ondelete="restrict"))
     current_price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
@@ -68,15 +71,24 @@ class StoreProduct(Base):
 class Barcode(Base):
     __tablename__ = "barcodes"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id", ondelete="restrict")
+    )
     code: Mapped[str] = mapped_column(String(50), unique=True, index=True)
 
 
 class Inventory(Base):
     __tablename__ = "inventory"
+    __table_args__ = (
+        CheckConstraint("quantity >= 0", name="ck_inventory_quantity_non_negative"),
+    )
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), index=True)
-    store_id: Mapped[int] = mapped_column(ForeignKey("stores.id"), index=True)
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id", ondelete="restrict"), index=True
+    )
+    store_id: Mapped[int] = mapped_column(
+        ForeignKey("stores.id", ondelete="restrict"), index=True
+    )
     quantity: Mapped[int] = mapped_column(Integer)
     batch_date: Mapped[date] = mapped_column(Date, index=True)
     expiry_date: Mapped[date] = mapped_column(Date)
@@ -85,8 +97,12 @@ class Inventory(Base):
 class SalesHistory(Base):
     __tablename__ = "sales_history"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), index=True)
-    store_id: Mapped[int] = mapped_column(ForeignKey("stores.id"), index=True)
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id", ondelete="restrict"), index=True
+    )
+    store_id: Mapped[int] = mapped_column(
+        ForeignKey("stores.id", ondelete="restrict"), index=True
+    )
     quantity_sold: Mapped[int] = mapped_column(Integer)
     sale_price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     sale_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
@@ -95,8 +111,10 @@ class SalesHistory(Base):
 class PriceHistory(Base):
     __tablename__ = "price_history"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
-    store_id: Mapped[int] = mapped_column(ForeignKey("stores.id"))
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id", ondelete="restrict")
+    )
+    store_id: Mapped[int] = mapped_column(ForeignKey("stores.id", ondelete="restrict"))
     old_price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     new_price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     changed_at: Mapped[datetime] = mapped_column(
@@ -110,7 +128,7 @@ class PriceHistory(Base):
 class ExternalFactor(Base):
     __tablename__ = "external_factors"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    store_id: Mapped[int] = mapped_column(ForeignKey("stores.id"))
+    store_id: Mapped[int] = mapped_column(ForeignKey("stores.id", ondelete="restrict"))
     date: Mapped[date] = mapped_column(Date)
     weather_condition: Mapped[str] = mapped_column(String(50))
     is_holiday: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -120,8 +138,10 @@ class ExternalFactor(Base):
 class PriceRecommendation(Base):
     __tablename__ = "price_recommendations"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
-    store_id: Mapped[int] = mapped_column(ForeignKey("stores.id"))
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id", ondelete="restrict")
+    )
+    store_id: Mapped[int] = mapped_column(ForeignKey("stores.id", ondelete="restrict"))
     action_type: Mapped[str] = mapped_column(String(50))
     recommended_value: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     reasoning: Mapped[str] = mapped_column(Text)

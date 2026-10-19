@@ -3,20 +3,18 @@ import os
 import sys
 from logging.config import fileConfig
 
+from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
-
-from alembic import context
 
 # Корень репозитория в sys.path, чтобы пакет `backend` был импортируем
 # при запуске alembic из любой директории.
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from backend.app import models  # noqa: E402, F401
-from backend.app.core.config import settings  # noqa: E402
-from backend.app.db.session import Base  # noqa: E402
-
+from backend.app import models  # noqa: F401
+from backend.app.core.config import settings
+from backend.app.db.session import Base
 
 config = context.config
 
@@ -27,10 +25,7 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 # Берём URL базы данных из настроек приложения
-config.set_main_option(
-    "sqlalchemy.url",
-    settings.DATABASE_URL.replace("%", "%%")
-)
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("%", "%%"))
 
 
 def run_migrations_offline() -> None:

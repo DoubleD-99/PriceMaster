@@ -13,4 +13,11 @@
 Принятие/отклонение — human-in-the-loop подтверждение (4-й вызов
 confirm_action, раздел 6.1). Требуется JWT + X-Store-ID; 404 на
 неизвестный id, 409 при повторной обработке.
+
+Эндпоинты реализуются в Итерации 2 (SDD, Приложение B, раздел B.2);
+роутер создан заранее, чтобы main.py подключал его стабильно.
 """
+
+from fastapi import APIRouter
+
+router = APIRouter(tags=["recommendations"])

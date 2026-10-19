@@ -18,6 +18,25 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict
 
+# =========================
+# AUTH
+# =========================
+
+
+class LoginRequest(BaseModel):
+    access_key: str
+
+
+class UserInfo(BaseModel):
+    user_id: int
+    username: str
+    store_ids: list[int]
+
+
+class TokenResponse(BaseModel):
+    token: str
+    user_info: UserInfo
+
 
 # =========================
 # STORES
@@ -135,6 +154,25 @@ class WriteOffCreate(BaseModel):
     product_id: int
     quantity: int
     reason: str
+
+
+class ReceivingResult(BaseModel):
+    batch: InventoryOut
+    quantity_added: int
+
+
+class WriteOffBatch(BaseModel):
+    batch_id: int
+    expiry_date: date
+    quantity: int
+
+
+class WriteOffResult(BaseModel):
+    product_id: int
+    store_id: int
+    quantity: int
+    reason: str
+    batches: list[WriteOffBatch]
 
 
 # =========================
