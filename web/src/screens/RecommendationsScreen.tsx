@@ -2,7 +2,7 @@ import { Card } from '../components/ui/Card'
 
 export function RecommendationsScreen() {
   return (
-    <Card title="Рекомендации по ценам">
+    <Card title="Рекомендации">
       <p className="muted">Таблица рекомендаций + фильтры (заглушка). Реализация согласно SDD B.2–B.3.</p>
       <div className="stack">
         <div className="row">

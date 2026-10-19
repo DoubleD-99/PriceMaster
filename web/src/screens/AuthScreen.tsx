@@ -50,7 +50,7 @@ export function AuthScreen() {
   return (
     <main className="screen screen--center">
       <Card title="PriceMaster">
-        <p className="muted">Введите ключ доступа магазина</p>
+        <p className="muted">Введите ключ доступа</p>
         <form className="stack" onSubmit={handleSubmit}>
           <Input
             type="password"
