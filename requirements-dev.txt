@@ -6,4 +6,6 @@
 pytest>=7.4
 pytest-asyncio>=0.23
 pytest-cov>=4.1
-ruff>=0.6
+ruff==0.17.1
+httpx>=0.26        # интеграционные тесты (httpx.AsyncClient против FastAPI)
+aiosqlite>=0.20    # in-memory SQLite для тестов

@@ -1,7 +1,7 @@
 # --- FastAPI + SQLAlchemy ---
 fastapi>=0.110
 uvicorn[standard]>=0.23
-sqlalchemy>=2.0,<3
+sqlalchemy[asyncio]>=2.0,<3
 asyncpg>=0.29
 pydantic>=2.5
 pydantic-settings>=2.1
@@ -9,6 +9,9 @@ python-dotenv>=1.0
 
 # --- Миграции ---
 alembic>=1.13
+
+# --- Аутентификация (JWT, POST /auth/login) ---
+pyjwt>=2.8
 
 # --- LLM-agent (внешний OpenAI-совместимый API) ---
 openai>=1.0
