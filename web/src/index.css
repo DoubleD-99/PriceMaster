@@ -88,6 +88,34 @@ body {
   gap: 1.25rem;
 }
 
+/* Экраны на весь вьюпорт с центрированием карточки (Auth, Store Selector). */
+.screen--center {
+  justify-content: center;
+  align-items: center;
+  min-height: 100dvh;
+}
+
+.screen--center .card {
+  width: min(420px, 100%);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.list li {
+  width: 100%;
+}
+
+.list .btn {
+  width: 100%;
+}
+
 .card {
   background: linear-gradient(180deg, rgba(37, 99, 235, 0.12) 0%, rgba(21, 27, 47, 0.95) 100%);
   border: 1px solid var(--border);
