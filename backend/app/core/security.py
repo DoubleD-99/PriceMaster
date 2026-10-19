@@ -9,7 +9,7 @@
 Первичный вход — ACCESS_KEY через POST /auth/login.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import jwt
 
@@ -35,7 +35,7 @@ class TokenPayload:
 
 def create_access_token(user_id: int, store_ids: list[int]) -> str:
     """Выдать JWT для пользователя со списком доступных магазинов."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": str(user_id),
         "store_ids": store_ids,

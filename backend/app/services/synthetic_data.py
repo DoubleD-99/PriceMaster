@@ -14,7 +14,7 @@
 """
 
 import random
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 
 from backend.app.models import (
@@ -210,9 +210,7 @@ def make_sales(
                             product_id=product.id,
                             quantity_sold=quantity,
                             sale_price=sale_price,
-                            sale_date=datetime.combine(
-                                day, time(12), tzinfo=timezone.utc
-                            ),
+                            sale_date=datetime.combine(day, time(12), tzinfo=UTC),
                         )
                     )
                 day += timedelta(days=1)
@@ -247,7 +245,7 @@ def make_price_history(
                         changed_at=datetime.combine(
                             today - timedelta(days=days_ago),
                             time(10),
-                            tzinfo=timezone.utc,
+                            tzinfo=UTC,
                         ),
                         recommendation_id=None,
                     )

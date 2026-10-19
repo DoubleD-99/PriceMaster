@@ -12,14 +12,14 @@
 Изоляция магазинов (SDD, раздел 3.4): токен без магазина + X-Store-ID -> 403.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from backend.app.core.config import settings
 
 
 def _day(offset: int) -> str:
     """Дата ISO (сегодня + offset) — для тел WMS-запросов."""
-    return (datetime.now(timezone.utc).date() + timedelta(days=offset)).isoformat()
+    return (datetime.now(UTC).date() + timedelta(days=offset)).isoformat()
 
 
 # =========================

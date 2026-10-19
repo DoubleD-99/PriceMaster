@@ -15,7 +15,7 @@
 """
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import delete, func, select, text
 
@@ -61,7 +61,7 @@ COUNTED = [
 
 async def seed() -> dict[str, int]:
     """Пересоздать синтетические данные; вернуть количество строк по таблицам."""
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

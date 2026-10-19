@@ -13,7 +13,7 @@
 Числовые расчёты — только здесь или в calculations.py (docs/agents.md, правило 2).
 """
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -159,7 +159,7 @@ async def alerts(
     today: date | None = None,
 ) -> dict[list[dict]]:
     """Алёрты магазина: истекающие партии и остатки ниже min_stock."""
-    today = today or datetime.now(timezone.utc).date()
+    today = today or datetime.now(UTC).date()
 
     expiring = [
         {"product_id": r[0], "batch_id": r[1], "expiry_date": r[2], "days_left": r[3]}
