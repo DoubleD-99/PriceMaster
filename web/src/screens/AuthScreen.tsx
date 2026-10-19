@@ -1,12 +1,18 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { isAxiosError } from 'axios'
 
 import { api } from '../api/client'
+import { Alert } from '../components/ui/Alert'
+import { Button } from '../components/ui/Button'
+import { Card } from '../components/ui/Card'
+import { Input } from '../components/ui/Input'
 import { useAuthStore } from '../stores/authStore'
 
+// Контракт POST /auth/login (SDD §A.5): { token, user_info }.
 interface LoginResponse {
-  access_token: string
+  token: string
 }
 
 export function AuthScreen() {
@@ -24,10 +30,18 @@ export function AuthScreen() {
       const { data } = await api.post<LoginResponse>('/auth/login', {
         access_key: accessKey,
       })
-      login(data.access_token)
+      login(data.token)
       navigate('/select-store')
-    } catch {
-      setError('Не удалось войти. Проверьте ключ доступа.')
+    } catch (err) {
+      if (isAxiosError(err) && err.response) {
+        setError(
+          err.response.status === 401 || err.response.status === 403
+            ? 'Неверный ключ доступа.'
+            : 'Ошибка сервера. Попробуйте позже.',
+        )
+      } else {
+        setError('Сервер недоступен. Проверьте соединение.')
+      }
     } finally {
       setLoading(false)
     }
@@ -35,22 +49,22 @@ export function AuthScreen() {
 
   return (
     <main className="screen screen--center">
-      <form className="card" onSubmit={handleSubmit}>
-        <h1>PriceMaster</h1>
-        <p className="muted">Введите ключ доступа магазина</p>
-        <input
-          type="password"
-          value={accessKey}
-          onChange={(event) => setAccessKey(event.target.value)}
-          placeholder="Access Key"
-          autoComplete="current-password"
-          required
-        />
-        {error && <p className="error">{error}</p>}
-        <button type="submit" disabled={loading}>
-          {loading ? 'Вход…' : 'Войти'}
-        </button>
-      </form>
+      <Card title="PriceMaster">
+        <p className="muted">Введите ключ доступа</p>
+        <form className="stack" onSubmit={handleSubmit}>
+          <Input
+            type="password"
+            value={accessKey}
+            onChange={(event) => setAccessKey(event.target.value)}
+            placeholder="Access Key"
+            autoComplete="current-password"
+          />
+          {error && <Alert type="error">{error}</Alert>}
+          <Button type="submit" disabled={loading}>
+            {loading ? 'Вход…' : 'Войти'}
+          </Button>
+        </form>
+      </Card>
     </main>
   )
 }

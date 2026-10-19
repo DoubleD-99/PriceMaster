@@ -2,8 +2,13 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { api } from '../api/client'
+import { Alert } from '../components/ui/Alert'
+import { Button } from '../components/ui/Button'
+import { Card } from '../components/ui/Card'
+import { Spinner } from '../components/ui/Spinner'
 import { useStoreContext } from '../stores/storeContext'
 
+// GET /stores (SDD §A.5): список магазинов, доступных токену.
 interface Store {
   id: number
   name: string
@@ -31,20 +36,19 @@ export function StoreSelector() {
 
   return (
     <main className="screen screen--center">
-      <section className="card">
-        <h1>Выбор магазина</h1>
-        {loading && <p className="muted">Загрузка…</p>}
-        {error && <p className="error">{error}</p>}
+      <Card title="Выбор магазина">
+        {loading && <Spinner label="Загрузка магазинов…" />}
+        {error && <Alert type="error">{error}</Alert>}
         <ul className="list">
           {stores.map((store) => (
             <li key={store.id}>
-              <button type="button" onClick={() => handleSelect(store.id)}>
+              <Button variant="ghost" onClick={() => handleSelect(store.id)}>
                 {store.name}
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
-      </section>
+      </Card>
     </main>
   )
 }

@@ -15,5 +15,6 @@ COPY . .
 # API слушает порт 8000
 EXPOSE 8000
 
-# Запуск FastAPI. При необходимости перед стартом вызывается seed_db (см. docker-compose / README).
-CMD ["python", "-m", "uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Запуск FastAPI: перед стартом применяются миграции схемы (alembic upgrade
+# head), затем uvicorn. Seed данных — вручную: docker compose run api python -m backend.seed_db
+CMD ["sh", "-c", "python -m alembic -c backend/alembic.ini upgrade head && exec python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000"]
