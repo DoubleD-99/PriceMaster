@@ -7,6 +7,10 @@ on:
     branches: [main, dev, "feature/**"]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   DATABASE_URL: postgresql+asyncpg://pricemaster:pricemaster@localhost:5432/pricemaster
   RUFF_VERSION: "0.17.1"
@@ -15,6 +19,7 @@ jobs:
   lint:
     name: lint (ruff)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -38,6 +43,7 @@ jobs:
   test:
     name: test (pytest)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       postgres:
         image: postgres:16-alpine
