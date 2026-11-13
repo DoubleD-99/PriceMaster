@@ -3,20 +3,20 @@ import { Card } from '../components/ui/Card'
 export function RecommendationsScreen() {
   return (
     <Card title="Рекомендации">
-      <p className="muted">Таблица рекомендаций + фильтры (заглушка). Реализация согласно SDD B.2–B.3.</p>
+      <p className="muted">Таблица рекомендаций + фильтры. Контракт — SDD §6.4.</p>
       <div className="stack">
         <div className="row">
           <label className="field">
             <span className="field__label">Статус</span>
             <select className="input">
               <option value="">Все</option>
-              <option value="NEW">Новые</option>
-              <option value="ACCEPTED">Принятые</option>
-              <option value="REJECTED">Отклонённые</option>
+              <option value="pending">Ожидают</option>
+              <option value="accepted">Принятые</option>
+              <option value="rejected">Отклонённые</option>
             </select>
           </label>
         </div>
-        <p className="muted">Данных пока нет (seed + расчёты появятся позже)</p>
+        <p className="muted">Подключение к GET /recommendations — следующий шаг.</p>
       </div>
     </Card>
   )

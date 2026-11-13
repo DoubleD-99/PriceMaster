@@ -11,9 +11,19 @@ from sqlalchemy import select
 
 from backend.app.api.deps import DbDep, StoreDep
 from backend.app.models import Inventory
-from backend.app.schemas import InventoryOut
+from backend.app.schemas import InventoryAlertsOut, InventoryOut
+from backend.app.services import wms
 
 router = APIRouter(tags=["inventory"])
+
+
+@router.get("/inventory/alerts", response_model=InventoryAlertsOut)
+async def list_inventory_alerts(
+    db: DbDep,
+    store_id: StoreDep,
+) -> InventoryAlertsOut:
+    """Истекающие партии и остатки ниже `min_stock` (D-10)."""
+    return InventoryAlertsOut.model_validate(await wms.alerts(db, store_id=store_id))
 
 
 @router.get("/inventory", response_model=list[InventoryOut])

@@ -6,12 +6,13 @@
 - auth.py            POST  /auth/login;
 - stores.py          GET   /stores;
 - products.py        GET   /products;
-- inventory.py       GET   /inventory;
+- inventory.py       GET   /inventory, GET /inventory/alerts;
 - wms.py             POST  /wms/receiving, POST  /wms/write-off;
 - barcodes.py        GET   /barcodes/{code};
 - recommendations.py POST  /recommendations/generate,
                      GET   /recommendations,
-                     POST  /recommendations/{id}/accept;
+                     POST  /recommendations/{id}/accept,
+                     POST  /recommendations/{id}/reject;
 - analytics.py       GET   /analytics/sales.
 
 Коды ответов: 200/201 — успех, 400 — невалидные данные/неверный заголовок,

@@ -66,45 +66,15 @@ make dc-up            # все сервисы Docker
 make dc-down          # остановить Docker-сервисы
 ```
 
-Линт и формат: `ruff check .`, `ruff format --check .`. CI —
-`.github/workflows/ci.yml`.
+Линт и формат: `ruff check .`, `ruff format --check .`. CI — `.github/workflows/ci.yml`.
 
 ## Документация
 
 | Документ | Содержание |
 |---|---|
-| [`docs/requirements.md`](docs/requirements.md) | нормативные требования ТЗ, API, критерии приёмки |
-| [`docs/SDD.md`](docs/SDD.md) | проектные контракты, алгоритмы, тестирование |
-| [`docs/agents.md`](docs/agents.md) | роль LLM-агента, tools, JSON-контракт, лимиты |
-| [`docs/project-decision.md`](docs/project-decision.md) | принятые решения и обоснования (ADR) |
-| [`docs/TODO.md`](docs/TODO.md) | план итераций и открытый бэклог |
-| [`docs/BUGS.md`](docs/BUGS.md) | известные дефекты |
-| [`AGENTS.md`](AGENTS.md) | правила для кодинг-агента, ветки и коммиты |
-
-## Тесты
-
-```bash
-make test
-```
-
-- **Unit:** расчёты маржи, reorder, `expected_impact`, инструменты агента.
-- **Integration:** API, изоляция магазинов, WMS FIFO.
-- **Frontend:** `npm --prefix web run build` (включает `tsc -b`) и
-  `npm --prefix web run lint`.
-
-## Переменные окружения
-
-Список и назначение — [`docs/requirements.md`](docs/requirements.md) §6,
-пример — [`.env.example`](.env.example). Секреты (`JWT_SECRET_KEY`,
-`ACCESS_KEY`, `LLM_API_KEY`) задаются только через окружение.
-
-## Деплой
-
-1. Клонировать репозиторий, установить Docker и Compose.
-2. Заполнить `.env`.
-3. `docker compose up --build -d`.
-4. При необходимости поставить reverse proxy (Caddy/Nginx) перед `web` и `api`.
-
-## Лицензия
-
-Учебный проект; условия использования уточняются у владельца репозитория.
+| docs/requirements.md | нормативные требования ТЗ, API, критерии приёмки |
+| docs/SDD.md | проектные контракты, алгоритмы, тестирование |
+| docs/agents.md | роль LLM-агента, tools, JSON-контракт, лимиты |
+| docs/project-decision.md | принятые решения и обоснования (ADR) |
+| docs/TODO.md | план итераций и открытый бэклог |
+| docs/BUGS.md | известные дефекты |

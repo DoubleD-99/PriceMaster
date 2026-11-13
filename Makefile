@@ -1,14 +1,4 @@
-# =========================================================================
-# PriceMaster — Makefile быстрого локального запуска
-# =========================================================================
-# Перед первым запуском:
-#   1) python -m venv .venv
-#   2) make install
-#   3) скопировать .env.example -> .env и заполнить значения
-# Зависимость: установленный make (на Windows: `choco install make`, WSL или Git Bash)
-# и Node.js + npm для фронтенда (цели web*).
 # Переменные окружения подтягиваются из .env.
-#
 # Активировать venv вручную не нужно и нельзя: каждый рецепт make —
 # отдельный процесс, активация не «переживает» его. Поэтому вызываем
 # интерпретатор venv напрямую через PY.
@@ -26,8 +16,6 @@ PYTEST  ?= $(PY) -m pytest
 
 .PHONY: help install db db-down api seed test web web-install web-build dc-up dc-down
 
-# Help text is ASCII-only on purpose: it renders correctly under any
-# terminal/codepage (cmd cp866, PowerShell, WSL, Git Bash) without tricks.
 define _HELP_MESSAGE
   Available commands:
     help        Show this help

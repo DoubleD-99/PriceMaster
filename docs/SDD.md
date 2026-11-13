@@ -4,8 +4,7 @@
 
 ### 1.1. Назначение и карта документов
 
-SDD описывает проектные решения, контракты и алгоритмы, которых нет в коде
-явно.
+SDD описывает проектные решения, контракты и алгоритмы, которых нет в коде явно.
 
 ### 1.2. Область действия
 
@@ -40,52 +39,7 @@ SDD описывает проектные решения, контракты и 
 
 ### 3.2. Модуль AI-агента
 
-#### 3.2.1. Цикл Tool Calling
-
-1. Системный промпт + запрос по товару → LLM с whitelist инструментов.
-2. LLM возвращает `tool_calls` → выполняются Python-функции.
-3. Результаты возвращаются модели; цикл повторяется до финального ответа.
-4. Ответ парсится в `AIRecommendationResponse`; при ошибке — repair-retry.
-5. `tool_calls_used` перезаписывается фактическим списком вызовов.
-
-Ограничения: не более 5 итераций tool calls, timeout одного инструмента — 10 с,
-до 3 попыток исправления JSON.
-
-#### 3.2.2. Реестр инструментов
-
-Инструменты регистрируются декоратором `@tool` в `services/ai/tools.py`.
-Реестр формирует whitelist для LLM: вызвать инструмент вне реестра нельзя.
-Аргументы описываются Pydantic-моделями и передаются в LLM как JSON Schema.
-
-#### 3.2.3. Набор инструментов
-
-| Tool | Аргументы | Результат |
-|---|---|---|
-| `get_stock_level` | `product_id`, `store_id` | остатки по партиям, `days_to_expiry`, минимальный срок |
-| `get_sales_trend` | `product_id`, `store_id`, `days` | сумма, средний дневной спрос, тренд |
-| `check_external_factors` | `store_id`, `date` | погода, `is_holiday`, `demand_multiplier` |
-| `calculate_reorder_amount` | `product_id`, `store_id` | объём закупки, текущий остаток, `min_stock` |
-| `calculate_margin_impact` | `product_id`, `store_id`, `new_price` | `expected_impact`, текущая цена, себестоимость |
-
-Расчётные функции — только `services/calculations.py`:
-
-- `reorder = ceil(avg_daily_sales × LEAD_TIME_DAYS + min_stock − current_stock)`;
-- `expected_impact` — см. §6.3.
-
-#### 3.2.4. Системный промпт
-
-Хранится в `services/ai/prompts.py`. Ключевые правила: не считать числа
-самостоятельно, вызывать инструменты, вернуть строгий JSON, писать `reasoning`
-по-русски в 2–3 предложениях, не домысливать данные.
-
-Триггеры вызова: кнопка «Анализ» (`POST /recommendations/generate`) и события
-`quantity < min_stock`, `expiry_date < 3 дней`.
-
-#### 3.2.5. Безопасность AI-модуля
-
-- **Read-only:** инструменты только читают БД.
-- **Запись цены:** только через `POST /recommendations/{id}/accept`, не из tools.
-- **Контроль:** whitelist и timeout — §3.2.1–§3.2.2, валидация ответа — §6.1.
+Описан в `docs/agents.md` (роль, инструменты, системный промпт, лимиты, жизненный цикл, безопасность). Контракт ответа `AIRecommendationResponse` — §6.1.
 
 ### 3.3. WMS: управление партиями (FIFO)
 
@@ -193,6 +147,43 @@ expected_impact = new_profit − current_profit
 `FORECAST_DAYS = 30`, `LEAD_TIME_DAYS = 3`. В рекомендацию попадает готовое
 число.
 
+### 6.4. Контракт рекомендаций
+
+| Метод | Путь | Тело / query | Ответ |
+|---|---|---|---|
+| POST | `/recommendations/generate` | `{product_id?: int, limit?: int}` | `RecommendationOut[]` |
+| GET | `/recommendations` | `status?: pending\|accepted\|rejected` | `RecommendationOut[]` |
+| POST | `/recommendations/{id}/accept` | — | `RecommendationOut` |
+| POST | `/recommendations/{id}/reject` | — | `RecommendationOut` |
+
+`RecommendationOut`: `id`, `product_id`, `store_id`, `action_type`,
+`recommended_value`, `reasoning`, `confidence`, `status`, `expected_impact`,
+`created_at`. `action_type` — `price_change | reorder | write_off`;
+`status` — `pending | accepted | rejected`.
+
+`generate` без `product_id` берёт кандидатов из алертов (истекающий срок,
+остаток ниже `min_stock`) и анализирует не больше `limit`. Ошибки — §6.2:
+`PRODUCT_NOT_FOUND` 404, `RECOMMENDATION_NOT_FOUND` 404,
+`RECOMMENDATION_ALREADY_PROCESSED` 409, `STORE_PRODUCT_NOT_FOUND` 404,
+`LLM_NOT_CONFIGURED` 503, `LLM_INVALID_RESPONSE` 502, `LLM_ERROR` 502.
+
+### 6.5. Контракт алертов
+
+`GET /inventory/alerts` возвращает `InventoryAlertsOut`:
+
+```json
+{
+  "expiring_soon": [
+    {"product_id": 1, "batch_id": 10, "expiry_date": "2026-11-15", "days_left": 2}
+  ],
+  "low_stock": [
+    {"product_id": 2, "quantity": 4, "min_stock": 5}
+  ]
+}
+```
+
+Требуется JWT + `X-Store-ID`; данные только выбранного магазина.
+
 ## 7. Стратегия тестирования
 
 ### 7.1. Unit-тесты
@@ -201,12 +192,13 @@ expected_impact = new_profit − current_profit
 - `tests/unit/test_external_factors.py` — погода, праздники, `demand_multiplier`.
 - `tests/unit/test_ai_tools.py` — инструменты, whitelist, timeout, ошибки аргументов.
 - `tests/unit/test_agent.py` — парсер, tool-loop, repair-retry, мок LLM.
+- `tests/unit/test_api_contract.py` — наличие путей и полей контрактов §6.4–6.5.
 
 ### 7.2. Integration-тесты
 
 `tests/integration/test_api.py`: авторизация, изоляция магазинов, справочники,
-приёмка, списание FIFO, поиск по ШК. Интеграционный сценарий «API → агент»
-пока отсутствует — задача B-04 в `docs/TODO.md`.
+приёмка, списание FIFO, поиск по ШК. `tests/integration/test_recommendations_api.py`:
+алерты, generate, list, accept, reject, сквозной сценарий «API → агент» с `mock_llm`.
 
 ### 7.3. E2E и ручная проверка
 

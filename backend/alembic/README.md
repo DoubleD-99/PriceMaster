@@ -1,6 +1,6 @@
 # Alembic — миграции БД
 
-Каталог для миграций (`backend/alembic/`). Схема БД — [`docs/requirements.md`](../docs/requirements.md) §4.
+Каталог для миграций (`backend/alembic/`). Схема БД — docs/requirements.md §4.
 
 Инициализация (один раз, из `backend/`):
 
@@ -16,5 +16,3 @@ alembic init alembic
 alembic revision --autogenerate -m "initial schema (9 tables)"
 alembic upgrade head
 ```
-
-Схема БД (9 таблиц) — [`docs/requirements.md`](../docs/requirements.md) §4.

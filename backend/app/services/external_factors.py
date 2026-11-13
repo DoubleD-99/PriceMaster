@@ -67,9 +67,14 @@ def weather_for(day: date) -> str:
     return variants[day.toordinal() % len(variants)]
 
 
+def is_public_holiday(day: date) -> bool:
+    """Официальный праздник РФ (без обычных выходных)."""
+    return (day.month, day.day) in RU_HOLIDAYS
+
+
 def is_holiday(day: date) -> bool:
     """Выходной или официальный праздник РФ."""
-    return day.weekday() >= 5 or (day.month, day.day) in RU_HOLIDAYS
+    return day.weekday() >= 5 or is_public_holiday(day)
 
 
 def demand_multiplier_for(day: date, weather: str) -> Decimal:
@@ -112,5 +117,6 @@ __all__ = [
     "demand_multiplier_for",
     "generate",
     "is_holiday",
+    "is_public_holiday",
     "weather_for",
 ]

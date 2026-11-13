@@ -16,6 +16,7 @@
 
 import asyncio
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from sqlalchemy import delete, func, select, text
 
@@ -103,6 +104,35 @@ async def seed() -> dict[str, int]:
 
         db.add_all(
             synthetic_data.make_price_history(stores, products, prices, today=today)
+        )
+        await db.flush()
+
+        # Заглушки рекомендаций для демо (agent ещё не генерировал).
+        db.add_all(
+            [
+                PriceRecommendation(
+                    product_id=products[0].id,  # Молоко 3.2%
+                    store_id=stores[0].id,
+                    action_type="price_change",
+                    recommended_value=(
+                        prices[(stores[0].id, products[0].id)] * Decimal("0.9")
+                    ).quantize(Decimal("0.01")),
+                    reasoning="Срок годности заканчивается через 2 дня, снижаем цену, чтобы избежать списания.",
+                    confidence=0.85,
+                    status="pending",
+                    expected_impact=Decimal("-120.00"),
+                ),
+                PriceRecommendation(
+                    product_id=products[5].id,  # Филе куриное
+                    store_id=stores[1].id,
+                    action_type="reorder",
+                    recommended_value=Decimal("24.00"),
+                    reasoning="Остаток ниже min_stock, спрос стабильный, закупка на 2 недели.",
+                    confidence=0.9,
+                    status="pending",
+                    expected_impact=Decimal("0.00"),
+                ),
+            ]
         )
         await db.flush()
 

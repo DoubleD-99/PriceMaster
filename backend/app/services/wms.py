@@ -18,7 +18,7 @@ from datetime import UTC, date, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.models import Inventory, Product
+from backend.app.models import Inventory, Product, StoreProduct
 
 EXPIRY_ALERT_DAYS = 3
 
@@ -157,12 +157,17 @@ async def alerts(
     *,
     store_id: int,
     today: date | None = None,
-) -> dict[list[dict]]:
+) -> dict[str, list[dict]]:
     """Алёрты магазина: истекающие партии и остатки ниже min_stock."""
     today = today or datetime.now(UTC).date()
 
     expiring = [
-        {"product_id": r[0], "batch_id": r[1], "expiry_date": r[2], "days_left": r[3]}
+        {
+            "product_id": r[0],
+            "batch_id": r[1],
+            "expiry_date": r[2],
+            "days_left": (r[2] - today).days,
+        }
         for r in (
             await db.execute(
                 select(
@@ -187,10 +192,25 @@ async def alerts(
     for product_id, quantity in stocks:
         stock_by_product[product_id] = stock_by_product.get(product_id, 0) + quantity
 
+    active_ids = set(
+        (
+            await db.scalars(
+                select(StoreProduct.product_id).where(
+                    StoreProduct.store_id == store_id,
+                    StoreProduct.is_active.is_(True),
+                )
+            )
+        ).all()
+    )
+    for product_id in active_ids:
+        stock_by_product.setdefault(product_id, 0)
+
     thresholds = {
         p.id: p.min_stock
         for p in (
-            await db.scalars(select(Product).where(Product.id.in_(stock_by_product)))
+            await db.scalars(
+                select(Product).where(Product.id.in_(list(stock_by_product)))
+            )
         ).all()
     }
     low_stock = [

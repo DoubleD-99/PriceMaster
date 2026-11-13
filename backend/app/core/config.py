@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     LLM_MODEL: str = ""
     JWT_SECRET_KEY: str = "FORTUNA812"
     ACCESS_KEY: str = "secret"
+    LOGIN_MAX_ATTEMPTS: int = 5
+    LOGIN_WINDOW_SECONDS: int = 300
+    LOGIN_LOCKOUT_SECONDS: int = 900
+    TRUST_PROXY_HEADERS: bool = False
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000
 

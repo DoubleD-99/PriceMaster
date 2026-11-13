@@ -1,63 +1,71 @@
 export type Store = {
   id: number
   name: string
-  code: string
-  city: string | null
-  address: string | null
-  phone: string | null
-  is_active: boolean
-  created_at: string
+  address: string
+  city: string
 }
 
 export type Product = {
   id: number
-  sku: string
   name: string
-  barcode: string | null
-  brand: string | null
-  category_id: number | null
-  unit: string
-  purchase_price: number
-  markup_percent: number | null
-  min_price: number | null
-  max_price: number | null
-  vat_rate: number | null
-  is_active: boolean
-  created_at: string
+  category: string
+  base_cost: number
+  shelf_life_days: number
+  min_stock: number
 }
 
 export type InventoryItem = {
   id: number
-  store_id: number
   product_id: number
-  qty_on_hand: number
-  qty_reserved: number
-  last_movement_at: string | null
+  store_id: number
+  quantity: number
+  batch_date: string
+  expiry_date: string
 }
 
-export type Barcode = {
-  id: number
-  product_id: number
-  barcode: string
-  created_at: string
-}
+export type RecommendationAction = 'price_change' | 'reorder' | 'write_off'
+export type RecommendationStatus = 'pending' | 'accepted' | 'rejected'
 
 export type Recommendation = {
   id: number
-  store_id: number
   product_id: number
-  current_price: number
-  recommended_price: number
-  reason_code: string
-  reason_text: string | null
-  confidence: number | null
-  status: 'NEW' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED' | 'APPLIED'
-  applied_at: string | null
-  expires_at: string | null
+  store_id: number
+  action_type: RecommendationAction
+  recommended_value: number
+  reasoning: string
+  confidence: number
+  status: RecommendationStatus
+  expected_impact: number
   created_at: string
-  updated_at: string
 }
 
-export type ApiError = {
-  detail: string | { [key: string]: string[] }
+export type RecommendationGenerateRequest = {
+  product_id?: number
+  limit?: number
 }
+
+export type ExpiringBatchAlert = {
+  product_id: number
+  batch_id: number
+  expiry_date: string
+  days_left: number
+}
+
+export type LowStockAlert = {
+  product_id: number
+  quantity: number
+  min_stock: number
+}
+
+export type InventoryAlerts = {
+  expiring_soon: ExpiringBatchAlert[]
+  low_stock: LowStockAlert[]
+}
+
+export type ErrorResponse = {
+  error_code: string
+  message: string
+  details: Record<string, unknown>
+}
+
+export type ApiError = ErrorResponse | { detail: string | Record<string, string[]> }

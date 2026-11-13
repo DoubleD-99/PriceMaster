@@ -1,6 +1,6 @@
 """Оркестрация AI-агента: цикл Tool Calling (SDD §3.2.1).
 
-Поток (Итерации 2 будет подключён к POST /recommendations/generate):
+Поток (подключён к POST /recommendations/generate):
 1. system (prompts.py) + user о кандидате → chat.completions с tools=
    (whitelist из tools.REGISTRY, §3.2.2);
 2. LLM возвращает tool_calls → выполняем их через tools.call_tool

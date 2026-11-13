@@ -1,7 +1,6 @@
 # web/ — PWA клиент
 
-Mobile-first PWA на React + Vite + TypeScript. Контракты — [`../docs/SDD.md`](../docs/SDD.md)
-§4, требования к экранам — [`../docs/requirements.md`](../docs/requirements.md) §2.4.
+Mobile-first PWA на React + Vite + TypeScript.
 
 ## Стек
 
@@ -34,18 +33,21 @@ API-пути идут без общего префикса: `/auth`, `/stores`, 
 Цель прокси переопределяется `VITE_API_TARGET` в `web/.env` (см.
 `.env.example`); браузер по-прежнему обращается к тому же origin.
 
+Для параллельной работы без backend: `VITE_API_MOCK=true` — функции из
+`src/api/endpoints.ts` отдают данные из `src/api/mock.ts`. Контракт запросов
+и ответов — `src/types/api.ts` и SDD §6.4–6.5.
+
 ## Структура
 
 ```text
 src/
 ├── api/client.ts        axios + интерсепторы Bearer / X-Store-ID
+├── api/endpoints.ts     типизированные вызовы API + mock-режим
+├── api/mock.ts          фикстуры рекомендаций и алертов
 ├── stores/              Zustand: authStore, storeContext
 ├── screens/             экраны приложения
 ├── components/          общие компоненты и навигация
-├── types/api.ts         типы ответов backend
+├── types/api.ts         типы запросов/ответов backend
 ├── App.tsx              роутинг + guard RequireAuth
 └── main.tsx
 ```
-
-Правила и команды репозитория — [`../AGENTS.md`](../AGENTS.md); текущий план —
-[`../docs/TODO.md`](../docs/TODO.md).

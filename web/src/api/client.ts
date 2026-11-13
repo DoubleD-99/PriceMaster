@@ -3,11 +3,10 @@ import axios from 'axios'
 import { useAuthStore } from '../stores/authStore'
 import { useStoreContext } from '../stores/storeContext'
 
-// baseURL по умолчанию пустой — запросы идут на тот же origin, который
-// в dev проксирует Vite, а в проде — nginx (single origin, без CORS).
-// Можно переопределить через VITE_API_URL (см. web/.env.example).
+// baseURL пустой — запросы идут на тот же origin, который в dev проксирует
+// Vite, а в проде — nginx (single-origin, без CORS, D-11).
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? '',
+  baseURL: '',
 })
 
 api.interceptors.request.use((config) => {

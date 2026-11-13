@@ -1,13 +1,15 @@
 """Pydantic-схемы запросов и ответов API (SDD, раздел 3.1, schemas/).
 
-Валидируемые модели для эндпоинтов Приложения A, раздела 5:
+Валидируемые модели для эндпоинтов SDD §6:
 - LoginRequest / TokenResponse  — POST /auth/login;
 - StoreOut                      — GET  /stores;
 - ProductOut                    — GET  /products;
-- InventoryItemOut              — GET  /inventory;
-- ReceivingRequest / WriteOffRequest — POST /wms/receiving, /wms/write-off;
-- RecommendationOut             — GET  /recommendations;
-- SaleOut                       — GET  /analytics/sales.
+- InventoryOut                  — GET  /inventory;
+- ReceivingCreate / ReceivingResult — POST /wms/receiving;
+- WriteOffCreate / WriteOffResult   — POST /wms/write-off;
+- InventoryAlertsOut            — GET  /inventory/alerts;
+- RecommendationGenerateRequest / RecommendationOut — /recommendations;
+- ErrorResponse                 — единый формат ошибок.
 
 Схемы переиспользуются роутерами (api/v1) и агентом (services/ai)
 для типобезопасного обмена.
@@ -15,8 +17,9 @@
 
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 # =========================
 # AUTH
@@ -219,17 +222,76 @@ class PriceHistoryOut(BaseModel):
 # RECOMMENDATIONS
 # =========================
 
+RecommendationAction = Literal["price_change", "reorder", "write_off"]
+RecommendationStatus = Literal["pending", "accepted", "rejected"]
+
+
+class RecommendationGenerateRequest(BaseModel):
+    product_id: int | None = Field(
+        default=None,
+        description="Конкретный товар; без него pipeline выбирает кандидатов.",
+    )
+    limit: int = Field(
+        default=10,
+        ge=1,
+        le=50,
+        description="Максимум кандидатов при пакетном анализе.",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {"product_id": 1},
+                {"limit": 5},
+            ]
+        }
+    )
+
 
 class RecommendationOut(BaseModel):
     id: int
     product_id: int
     store_id: int
-    action_type: str
+    action_type: RecommendationAction
     recommended_value: Decimal
     reasoning: str
     confidence: float
-    status: str
+    status: RecommendationStatus
     expected_impact: Decimal
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# =========================
+# ALERTS
+# =========================
+
+
+class ExpiringBatchAlert(BaseModel):
+    product_id: int
+    batch_id: int
+    expiry_date: date
+    days_left: int
+
+
+class LowStockAlert(BaseModel):
+    product_id: int
+    quantity: int
+    min_stock: int
+
+
+class InventoryAlertsOut(BaseModel):
+    expiring_soon: list[ExpiringBatchAlert]
+    low_stock: list[LowStockAlert]
+
+
+# =========================
+# ERRORS
+# =========================
+
+
+class ErrorResponse(BaseModel):
+    error_code: str
+    message: str
+    details: dict[str, Any] = Field(default_factory=dict)

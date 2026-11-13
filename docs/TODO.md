@@ -1,8 +1,4 @@
-# TODO и план работ PriceMaster
-
-> План по итерациям и открытый бэклог. Нормативные требования — `docs/requirements.md`,
-> проектные контракты — `docs/SDD.md`, обоснования решений — `docs/project-decision.md`,
-> известные дефекты — `docs/BUGS.md`.
+# TODO и план работ
 
 **Правила**
 
@@ -40,17 +36,17 @@
 
 - [x] AI-модуль: `tools.py`, `agent.py`, `prompts.py`, JSON-валидация.
 - [x] Unit-тесты инструментов, расчётов и цикла агента.
-- [ ] `POST /recommendations/generate` — сейчас заглушка.
-- [ ] `GET /recommendations` — сейчас заглушка.
-- [ ] `POST /recommendations/{id}/accept` — сейчас заглушка.
-- [ ] `POST /recommendations/{id}/reject` — решение D-09.
-- [ ] Pipeline выбора кандидатов для анализа.
-- [ ] `GET /inventory/alerts` — см. BUG-03.
-- [ ] Выравнивание `web/src/types/api.ts` под backend — см. BUG-01.
+- [x] `POST /recommendations/generate` — базовый pipeline + mock-тест.
+- [x] `GET /recommendations` — фильтр по статусу, сортировка.
+- [x] `POST /recommendations/{id}/accept` — D-08.
+- [x] `POST /recommendations/{id}/reject` — D-09.
+- [x] Pipeline выбора кандидатов по алертам (базовый).
+- [x] `GET /inventory/alerts` — BUG-03/BUG-04.
+- [x] Выравнивание `web/src/types/api.ts` под backend — BUG-01.
 - [ ] Формы приёмки/списания в PWA.
 - [ ] Интеграция сканера с API и переходом в карточку/форму.
 - [ ] Dashboard Home и Recommendations List на реальных данных.
-- [ ] Интеграционный тест «API → агент» с моком LLM — B-04.
+- [x] Интеграционный тест «API → агент» с моком LLM — B-04.
 - [ ] Smoke-тест агента на синтетических данных.
 - [x] Seed намеренно не создаёт рекомендации — они появляются через `generate`.
 
@@ -72,7 +68,7 @@
 
 | ID | Задача | Приоритет | Оценка | Статус |
 |---|---|---|---|---|
-| B-04 | Интеграционный тест «API → агент» с моком LLM | P1 | 0,5 дня | открыт |
+| B-04 | Интеграционный тест «API → агент» с моком LLM | P1 | 0,5 дня | закрыт |
 | B-08 | Exception handlers и единый формат ошибок | P2 | 0,5 дня | открыт |
 | B-09 | Кастомизация Swagger/OpenAPI | P2 | 0,5 дня | открыт |
 | B-11 | Makefile: цели для Docker | P3 | 20 мин | открыт |
@@ -84,10 +80,11 @@
 
 ### B-04. Интеграционный тест «API → агент»
 
-Фикстура `mock_llm` объявлена в `tests/conftest.py`, но не используется.
-Нужно замокать OpenAI-совместимый вызов: первый ответ — tool call, второй —
-валидный JSON; проверить `status = pending`, `expected_impact` из Python-расчёта
-и `reasoning`. Связано с README/SDD и итерацией 2.
+**Статус:** закрыт. `test_generate_api_to_agent_with_mock_llm` в
+`tests/integration/test_recommendations_api.py` прогоняет
+`POST /recommendations/generate` через настоящий `analyze_product`, мок LLM
+(`mock_llm` в `tests/conftest.py`) и проверяет tool call +
+`expected_impact` из Python-расчёта.
 
 ### B-08. Exception handlers и единый формат ошибок
 
@@ -139,7 +136,27 @@
 
 ---
 
-## 3. Закрытые решения
+## 3. Параллельная работа
+
+Контракты итерации 2 зафиксированы в `docs/SDD.md` §6.4–6.5,
+`backend/app/schemas/` и `web/src/types/api.ts`. Менять поля, статусы или коды
+ошибок — только одновременно в backend, frontend и контракте.
+
+| Поток | Зона | Файлы | Гейт |
+|---|---|---|---|
+| Backend API | recommendations, alerts | `api/v1/recommendations.py`, `api/v1/inventory.py`, `services/recommendations.py`, `schemas/` | integration-тесты эндпоинтов |
+| Agent | pipeline кандидатов, generate | `services/ai/`, `services/recommendations.py` | B-04 зелёный |
+| Frontend | экраны, типы, mock | `web/src/api/`, `web/src/types/api.ts`, `web/src/screens/` | `npm run build`, `npm run lint` |
+| Integration | контракт и сквозной сценарий | `tests/`, `docs/SDD.md` §6 | контрактные + integration-тесты зелёные |
+
+- Frontend может работать без backend: `VITE_API_MOCK=true` в `web/.env`.
+- Backend может работать без реальной LLM: `mock_llm` в `tests/conftest.py`.
+- Ветки — `<type>/<short-desc>` от `dev`; PR не меняет контракт без отметки в
+  этом разделе.
+
+---
+
+## 4. Закрытые решения
 
 Решение D-01 (Telegram-бот), D-02 (PWA вместо нативного приложения) и D-03
 (read-only справочники) зафиксированы в `docs/project-decision.md`.
