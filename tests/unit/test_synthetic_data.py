@@ -4,7 +4,11 @@ from datetime import date
 from decimal import Decimal
 
 from backend.app.models import Product
-from backend.app.services.external_factors import is_holiday, is_public_holiday, weather_for
+from backend.app.services.external_factors import (
+    is_holiday,
+    is_public_holiday,
+    weather_for,
+)
 from backend.app.services.synthetic_data import (
     CATALOG,
     CATEGORY_MARKUP,
