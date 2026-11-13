@@ -7,7 +7,7 @@ sequenceDiagram
     participant Client as PWA
     participant API as /recommendations/generate
     participant Agent as AgentOrchestrator
-    participant LLM as Qwen API
+    participant LLM as LLM API
     participant Tools as Python Tools
     
     Client->>API: POST generate(product_id, store_id)

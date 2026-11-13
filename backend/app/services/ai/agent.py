@@ -2,12 +2,12 @@
 
 Поток (Итерации 2 будет подключён к POST /recommendations/generate):
 1. system (prompts.py) + user о кандидате → chat.completions с tools=
-   (whitelist из tools.REGISTRY, §3.2.5);
+   (whitelist из tools.REGISTRY, §3.2.2);
 2. LLM возвращает tool_calls → выполняем их через tools.call_tool
    (read-only сессия БД, timeout 10 c) → результаты возвращаем модели;
 3. повторяем до финального текстового ответа (не более MAX_TOOL_ITERATIONS);
 4. парсер извлекает JSON и валидирует AIRecommendationResponse (§6.1);
-   при ValidationError / битом JSON — retry с ремаркой (до 3 попыток, §9);
+   при ValidationError / битом JSON — retry с ремаркой (до 3 попыток, §8);
 5. tool_calls_used перезаписывается реальным списком вызванных tools
    (поле для аудита — не доверяем памяти LLM).
 
@@ -30,12 +30,12 @@ from backend.app.services.ai import prompts, tools
 
 # Максимум последовательных вызовов tools в одном цикле (защита от зацикливания).
 MAX_TOOL_ITERATIONS = 5
-# Попытки вытянуть валидный JSON из ответа LLM (риск «битого JSON», §9).
+# Попытки вытянуть валидный JSON из ответа LLM (риск «битого JSON», §8).
 MAX_REPAIR_ATTEMPTS = 3
 
 
 def make_client() -> AsyncOpenAI | None:
-    """Клиент OpenAI-совместимого API (Qwen); None — если не сконфигурирован."""
+    """Клиент внешнего OpenAI-совместимого API; None — если не сконфигурирован."""
     if not settings.LLM_API_URL or not settings.LLM_API_KEY:
         return None
     return AsyncOpenAI(

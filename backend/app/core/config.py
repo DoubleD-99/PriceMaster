@@ -2,8 +2,8 @@
 
 Через pydantic-settings читаются значения из .env / окружения:
 - DATABASE_URL       — строка подключения к PostgreSQL;
-- LLM_API_URL / LLM_API_KEY / LLM_MODEL — параметры OpenAI-совместимого
-  API (Qwen, внешний хост; SDD, Приложение A, раздел 14);
+- LLM_API_URL / LLM_API_KEY / LLM_MODEL — параметры внешнего
+  OpenAI-совместимого API (requirements.md §6);
 - JWT_SECRET_KEY     — секрет подписи JWT-токенов;
 - ACCESS_KEY         — ключ доступа для POST /auth/login;
 - API_HOST / API_PORT — адрес привязки для локального запуска.
