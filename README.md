@@ -62,6 +62,8 @@ make test             # pytest
 make web-install      # npm install в web/
 make web              # Vite :5173
 make web-build        # сборка web/dist
+make web-test         # автотесты фронтенда (Vitest)
+make web-lint         # линт фронтенда (oxlint)
 make dc-up            # все сервисы Docker
 make dc-down          # остановить Docker-сервисы
 ```

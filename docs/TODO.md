@@ -32,7 +32,7 @@
 
 ### Итерация 2. AI-агент + PWA (недели 3–4)
 
-**Статус:** в работе.
+**Статус:** завершена.
 
 - [x] AI-модуль: `tools.py`, `agent.py`, `prompts.py`, JSON-валидация.
 - [x] Unit-тесты инструментов, расчётов и цикла агента.
@@ -43,24 +43,24 @@
 - [x] Pipeline выбора кандидатов по алертам (базовый).
 - [x] `GET /inventory/alerts` — BUG-03/BUG-04.
 - [x] Выравнивание `web/src/types/api.ts` под backend — BUG-01.
-- [ ] Формы приёмки/списания в PWA.
-- [ ] Интеграция сканера с API и переходом в карточку/форму.
-- [ ] Dashboard Home и Recommendations List на реальных данных.
+- [x] Формы приёмки/списания в PWA.
+- [x] Интеграция сканера с API и переходом в карточку/форму.
+- [x] Dashboard Home и Recommendations List на реальных данных.
 - [x] Интеграционный тест «API → агент» с моком LLM — B-04.
 - [x] Smoke-тест агента на синтетических данных — `tests/integration/test_agent_smoke.py`.
 - [x] Seed намеренно не создаёт рекомендации — они появляются через `generate`.
 
 ### Итерация 3. Аналитика + полировка + демо (недели 5–6)
 
-**Статус:** backend-задачи закрыты; фронтенд/демо — в работе.
+**Статус:** завершена.
 
 - [x] `GET /analytics/sales` и агрегация продаж.
 - [x] Индексы для `price_history`, `external_factors`, `price_recommendations` — B-12 (модели + миграция `a7b8c9d0e1f2`).
 - [x] Кастомные exception handlers и единый формат ошибок — B-08 (`backend/app/api/errors.py`, обработчики в `main.py`).
 - [x] Кастомизация Swagger/OpenAPI — B-09 (теги, summary/description, ответы ошибок).
-- [ ] Product Card, Analytics, Recharts, графики продаж.
-- [ ] Финальная проверка адаптивности и offline-фолбэка.
-- [ ] «Золотой сценарий» демо: сканирование → приёмка → алёрт → рекомендация → принятие → график.
+- [x] Product Card, Analytics, Recharts, графики продаж.
+- [x] Финальная проверка адаптивности и offline-фолбэка.
+- [x] «Золотой сценарий» демо: сканирование → приёмка → алёрт → рекомендация → принятие → график.
 
 ---
 
@@ -73,10 +73,12 @@
 | B-09 | Кастомизация Swagger/OpenAPI | P2 | 0,5 дня | закрыт |
 | B-11 | Makefile: цели для Docker | P3 | 20 мин | открыт |
 | B-12 | Индексы для аналитики | P2 | 2 ч + миграция | закрыт |
-| B-13 | Автотесты фронтенда | P3 | 1 день | открыт |
+| B-13 | Автотесты фронтенда | P3 | 1 день | закрыт |
 | B-14 | Трейкинг вызовов tools | P3 | 0,5 дня | открыт |
 | B-15 | Кандидаты «на подумать» | P3 | — | открыт |
 | B-17 | Ссылки на документацию в docstring кода | P3 | 0,5 дня | открыт |
+| B-18 | Цена и история цен в Product Card | P2 | 1 день | открыт |
+| B-19 | Offline-кэш справочников API | P2 | 1 день | открыт |
 
 ### B-04. Интеграционный тест «API → агент»
 
@@ -94,8 +96,10 @@
 
 ### B-09. Swagger и OpenAPI
 
-**Статус:** закрыт. Метаданные приложения, теги по разделам, `summary`/`description`
-и ответы ошибок на ключевых эндпоинтах.
+**Статус:** закрыт. Метаданные приложения, теги по разделам, `summary`/`description`,
+ответы ошибок на ключевых эндпоинтах; `backend/app/api/openapi.py` приводит
+схему к runtime-контракту: `X-Store-ID` обязателен, 400/403/422 используют
+`ErrorResponse`.
 
 ### B-11. Makefile: цели для Docker
 
@@ -109,9 +113,11 @@
 
 ### B-13. Тесты фронтенда
 
-Фронт проверяется только `tsc -b` и `oxlint`. Минимум — 2–3 теста на
-`storeContext`/интерсепторы axios; в идеале — playwright-сценарий
-«логин → выбор магазина → приёмка».
+**Статус:** закрыт. `npm test` (Vitest + jsdom) проверяет персистентность
+`storeContext`, подстановку `Authorization`/`X-Store-ID` и блокировку мутаций
+без связи с backend. В `Makefile` добавлены цели `web-test` и `web-lint`.
+Playwright-сценарий не реализован: «золотой
+сценарий» описан в `web/README.md` и проверяется вручную.
 
 ### B-14. Трейкинг вызовов tools
 
@@ -123,7 +129,6 @@
 
 Не подтверждены ТЗ, на усмотрение команды:
 
-- offline-данные (кэш остатков и рекомендаций);
 - Web Push вместо Telegram-бота;
 - экспорт рекомендаций в CSV/PDF;
 - роли пользователей (владелец/продавец).
@@ -133,6 +138,21 @@
 После выделения `requirements.md` и удаления Приложений A/B в docstring кода
 остались ссылки на старую структуру SDD. Нужно пройтись по `backend/` и `web/`
 и обновить ссылки на актуальные разделы.
+
+### B-18. Цена и история цен в Product Card
+
+`docs/requirements.md` §2.4 требует цену и историю изменений в карточке товара.
+Отдельных эндпоинтов нет; сейчас UI показывает последнюю принятую цену из
+рекомендаций. Нужны store-scoped `GET /products/{id}/price` и
+`GET /products/{id}/price-history`, схемы, web-типы и замена фолбэка в
+`web/src/screens/ProductCardScreen.tsx`.
+
+### B-19. Offline-кэш справочников API
+
+`docs/SDD.md` §4.3 описывает API Network First с кэшем справочников; сейчас
+кэшируются только статические ассеты, мутации блокированы, показывается баннер.
+Нужно кэшировать `/stores`, `/products`, `/barcodes/{code}` с учётом
+`X-Store-ID`, TTL и инвалидацией после восстановления связи.
 
 ---
 
@@ -146,7 +166,7 @@
 |---|---|---|---|
 | Backend API | recommendations, alerts | `api/v1/recommendations.py`, `api/v1/inventory.py`, `services/recommendations.py`, `schemas/` | integration-тесты эндпоинтов |
 | Agent | pipeline кандидатов, generate | `services/ai/`, `services/recommendations.py` | B-04 зелёный |
-| Frontend | экраны, типы, mock | `web/src/api/`, `web/src/types/api.ts`, `web/src/screens/` | `npm run build`, `npm run lint` |
+| Frontend | экраны, типы, mock | `web/src/api/`, `web/src/types/api.ts`, `web/src/screens/` | `npm run build`, `npm run lint`, `npm test` |
 | Integration | контракт и сквозной сценарий | `tests/`, `docs/SDD.md` §6 | контрактные + integration-тесты зелёные |
 
 - Frontend может работать без backend: `VITE_API_MOCK=true` в `web/.env`.

@@ -1,11 +1,15 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 
 import { StoreSelect } from './StoreSelect'
+import { useNetworkStatus } from '../hooks/useNetworkStatus'
 import { useAuthStore } from '../stores/authStore'
+import { useStoreContext } from '../stores/storeContext'
 
 export function Layout() {
   const navigate = useNavigate()
   const logout = useAuthStore((state) => state.logout)
+  const storeId = useStoreContext((state) => state.storeId)
+  const { online } = useNetworkStatus()
 
   function handleLogout() {
     logout()
@@ -14,9 +18,15 @@ export function Layout() {
 
   return (
     <div className="app">
+      {!online && (
+        <div className="offline-banner" role="status">
+          Нет связи с сервером. Данные могут быть устаревшими; приёмка, списание и решение по
+          рекомендациям недоступны.
+        </div>
+      )}
       <header className="topbar">
         <nav className="nav">
-          <NavLink to="/" className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}>
+          <NavLink to="/dashboard" className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}>
             Дашборд
           </NavLink>
           <NavLink to="/recommendations" className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}>
@@ -24,6 +34,9 @@ export function Layout() {
           </NavLink>
           <NavLink to="/inventory" className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}>
             Склад
+          </NavLink>
+          <NavLink to="/analytics" className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}>
+            Аналитика
           </NavLink>
           <NavLink to="/scanner" className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}>
             Сканер ШК
@@ -40,7 +53,7 @@ export function Layout() {
         </div>
       </header>
       <main className="screen">
-        <Outlet />
+        <Outlet key={storeId ?? 'none'} />
       </main>
     </div>
   )

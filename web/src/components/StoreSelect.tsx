@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 
-import { api } from '../api/client'
+import { listStores } from '../api/endpoints'
 import { useStoreContext } from '../stores/storeContext'
 import type { Store } from '../types/api'
 
@@ -17,32 +17,15 @@ export function StoreSelect() {
   const triggerRef = useRef<HTMLButtonElement>(null)
 
   const load = useCallback(() => {
-    setLoading(true)
-    setFailed(false)
-    api
-      .get<Store[]>('/stores')
-      .then((response) => setStores(response.data))
+    listStores()
+      .then((rows) => setStores(rows))
       .catch(() => setFailed(true))
       .finally(() => setLoading(false))
   }, [])
 
   useEffect(() => {
-    let cancelled = false
-    api
-      .get<Store[]>('/stores')
-      .then((response) => {
-        if (!cancelled) setStores(response.data)
-      })
-      .catch(() => {
-        if (!cancelled) setFailed(true)
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
+    load()
+  }, [load])
 
   useEffect(() => {
     if (!open) return
@@ -147,7 +130,15 @@ export function StoreSelect() {
           {!loading && failed && (
             <div className="store-select__note store-select__note--error">
               Не удалось загрузить
-              <button type="button" className="store-select__retry" onClick={load}>
+              <button
+                type="button"
+                className="store-select__retry"
+                onClick={() => {
+                  setLoading(true)
+                  setFailed(false)
+                  load()
+                }}
+              >
                 Повторить
               </button>
             </div>

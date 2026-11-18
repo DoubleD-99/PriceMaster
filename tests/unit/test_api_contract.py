@@ -38,3 +38,33 @@ def test_recommendation_contract_fields() -> None:
 def test_alert_and_error_contract_fields() -> None:
     assert set(InventoryAlertsOut.model_fields) == {"expiring_soon", "low_stock"}
     assert set(ErrorResponse.model_fields) == {"error_code", "message", "details"}
+
+
+def test_openapi_matches_runtime_header_and_error_contract() -> None:
+    schema = app.openapi()
+    error_ref = {"$ref": "#/components/schemas/ErrorResponse"}
+    store_scoped = {
+        "/inventory": "get",
+        "/wms/receiving": "post",
+        "/recommendations": "get",
+        "/analytics/sales": "get",
+    }
+    for path, method in store_scoped.items():
+        operation = schema["paths"][path][method]
+        headers = [
+            parameter
+            for parameter in operation["parameters"]
+            if parameter["name"] == "X-Store-ID"
+        ]
+        assert len(headers) == 1
+        assert headers[0]["required"] is True
+        assert (
+            operation["responses"]["400"]["content"]["application/json"]["schema"]
+            == error_ref
+        )
+    protected = schema["paths"]["/stores"]["get"]["responses"]
+    assert protected["400"]["content"]["application/json"]["schema"] == error_ref
+    assert protected["403"]["content"]["application/json"]["schema"] == error_ref
+    validation = schema["paths"]["/auth/login"]["post"]["responses"]["422"]
+    assert validation["content"]["application/json"]["schema"] == error_ref
+    assert "HTTPValidationError" not in schema["components"]["schemas"]

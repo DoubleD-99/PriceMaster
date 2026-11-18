@@ -32,6 +32,12 @@ async def test_login_wrong_key_401(api_client) -> None:
     assert response.status_code == 401
 
 
+async def test_login_non_ascii_wrong_key_401(api_client) -> None:
+    response = await api_client.post("/auth/login", json={"access_key": "пароль"})
+    assert response.status_code == 401
+    assert response.json()["error_code"] == "INVALID_ACCESS_KEY"
+
+
 async def test_login_rate_limited_after_failures(api_client) -> None:
     for _ in range(settings.LOGIN_MAX_ATTEMPTS - 1):
         response = await api_client.post("/auth/login", json={"access_key": "nope"})

@@ -1,6 +1,6 @@
-import type { PropsWithChildren } from 'react'
+import type { PropsWithChildren, ReactNode } from 'react'
 
-export function Card({ children, title }: PropsWithChildren<{ title?: string }>) {
+export function Card({ children, title }: PropsWithChildren<{ title?: ReactNode }>) {
   return (
     <div className="card">
       {title && <h2>{title}</h2>}

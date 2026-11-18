@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 
 from backend.app.api.errors import STATUS_ERROR_CODES, ApiError, error_response
 from backend.app.api.middleware import RequestIdMiddleware, TenantMiddleware
+from backend.app.api.openapi import configure_openapi
 from backend.app.api.v1 import (
     analytics,
     auth,
@@ -130,3 +131,6 @@ for router in (
 )
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+configure_openapi(app)
