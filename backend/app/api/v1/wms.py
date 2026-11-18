@@ -1,21 +1,12 @@
-"""Складские операции (WMS) — SDD, Приложение A, разделы 5 и 6.
-
-- POST /wms/receiving — приёмка; Body { product_id, quantity, batch_date,
-  expiry_date }: запись партии + обновление остатков;
-- POST /wms/write-off — списание; Body { product_id, quantity, reason }:
-  фиксация убытка (порча/истечение срока), списание по партиям FIFO
-  (срок годности раньше списывается раньше) — раздел 3.3.
-
-Бизнес-логика — в backend.app.services.wms (не зависит от HTTP).
-Ошибки — формат SDD, раздел 6.2: { error_code, message, details }.
-Требуется JWT + X-Store-ID; 400 при нехватке остатков/невалидных данных.
-"""
+"""Складские операции (WMS)."""
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from backend.app.api.deps import DbDep, StoreDep
+from backend.app.api.errors import error_response
 from backend.app.schemas import (
+    ErrorResponse,
     InventoryOut,
     ReceivingCreate,
     ReceivingResult,
@@ -24,28 +15,35 @@ from backend.app.schemas import (
 )
 from backend.app.services import wms
 
-router = APIRouter(tags=["wms"])
+router = APIRouter(tags=["WMS"])
 
 
 def _wms_error(exc: wms.WmsError) -> JSONResponse:
-    """Ответ об ошибке в формате SDD, раздел 6.2."""
-    return JSONResponse(
+    return error_response(
         status_code=exc.status_code,
-        content={
-            "error_code": exc.error_code,
-            "message": exc.message,
-            "details": exc.details,
-        },
+        error_code=exc.error_code,
+        message=exc.message,
+        details=exc.details,
     )
 
 
-@router.post("/wms/receiving", status_code=201, response_model=ReceivingResult)
+@router.post(
+    "/wms/receiving",
+    status_code=201,
+    response_model=ReceivingResult,
+    summary="Приёмка партии",
+    responses={
+        400: {"model": ErrorResponse},
+        401: {"model": ErrorResponse},
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+    },
+)
 async def receiving(
     body: ReceivingCreate,
     db: DbDep,
     store_id: StoreDep,
 ) -> ReceivingResult | JSONResponse:
-    """Приёмка товара в выбранный магазин (партия batch_date/expiry_date)."""
     try:
         batch, added = await wms.receiving(
             db,
@@ -63,13 +61,21 @@ async def receiving(
     )
 
 
-@router.post("/wms/write-off", response_model=WriteOffResult)
+@router.post(
+    "/wms/write-off",
+    response_model=WriteOffResult,
+    summary="Списание по FIFO",
+    responses={
+        400: {"model": ErrorResponse},
+        401: {"model": ErrorResponse},
+        403: {"model": ErrorResponse},
+    },
+)
 async def write_off(
     body: WriteOffCreate,
     db: DbDep,
     store_id: StoreDep,
 ) -> WriteOffResult | JSONResponse:
-    """Списание товара по FIFO (партии с наименьшим expiry_date первыми)."""
     try:
         batches = await wms.write_off(
             db,
