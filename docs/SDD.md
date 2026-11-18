@@ -67,7 +67,11 @@ ORDER BY expiry_date ASC, batch_date ASC;
 
 - `useAuthStore` — JWT; сейчас `sessionStorage` (временное решение, см. BUG-06
   и `docs/project-decision.md` D-07).
-- `useStoreContext` — выбранный `store_id` в `localStorage`.
+- `useStoreContext` — выбранный `store_id` в `localStorage`; при смене `Layout`
+  перемонтирует `<Outlet>`, и экраны заново запрашивают данные.
+- После входа и выбора магазина открывается `/dashboard`; `/` перенаправляет
+  туда же.
+- `useNetworkStore` — результат health-пинга; не persist между сессиями.
 - Рекомендации — серверное состояние; не persist в Zustand.
 
 ### 4.2. Интеграция сканера штрихкодов
@@ -82,7 +86,9 @@ ORDER BY expiry_date ASC, batch_date ASC;
 - Статические ассеты — Cache First.
 - API — Network First; при отсутствии сети показывать ошибку или кэш справочников.
 - Manifest: `display: standalone`, `theme_color`, иконки 192×192 и 512×512.
-- Текущее ограничение: кэшируется только статика, баннер offline — в BUG-07.
+- Баннер при потере связи, health-пинг `/health` и блокировка мутаций
+  реализованы в PWA; кэшируются только статические ассеты, данные API не
+  кэшируются.
 
 ## 5. База данных: детали реализации
 
@@ -92,10 +98,14 @@ ORDER BY expiry_date ASC, batch_date ASC;
 
 - `barcodes.code` — уникальный;
 - `inventory(store_id)`, `inventory(product_id)`, `inventory(batch_date)`;
-- `sales_history(store_id)`, `sales_history(product_id)`, `sales_history(sale_date)`.
+- `sales_history(store_id)`, `sales_history(product_id)`, `sales_history(sale_date)`;
+- `price_history(store_id)`, `price_history(product_id)`, `price_history(changed_at)`;
+- `external_factors(store_id)`, `external_factors(date)`,
+  `external_factors(store_id, date)`;
+- `price_recommendations(store_id)`, `price_recommendations(store_id, status)`,
+  `price_recommendations(created_at)`.
 
-Не хватает индексов для `price_history`, `external_factors`,
-`price_recommendations` — задача B-12 в `docs/TODO.md`.
+Последняя группа добавлена миграцией `a7b8c9d0e1f2` — B-12 закрыт.
 
 ### 5.2. Ограничения целостности
 
@@ -129,8 +139,9 @@ class AIRecommendationResponse(BaseModel):
 }
 ```
 
-WMS-ошибки формируются `services/wms.py`; единый обработчик для остальных
-эндпоинтов — задача B-08 в `docs/TODO.md`.
+WMS-ошибки формируются `services/wms.py`; остальные ошибки (включая 422) —
+`backend/app/api/errors.py`. Обработчики подключены в `backend/app/main.py` —
+B-08 закрыт.
 
 ### 6.3. Расчёт ожидаемого эффекта
 

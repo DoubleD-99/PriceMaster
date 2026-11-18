@@ -41,7 +41,10 @@ def make_client() -> AsyncOpenAI | None:
     if not settings.LLM_API_URL or not settings.LLM_API_KEY:
         return None
     return AsyncOpenAI(
-        base_url=settings.LLM_API_URL or None, api_key=settings.LLM_API_KEY
+        base_url=settings.LLM_API_URL or None,
+        api_key=settings.LLM_API_KEY,
+        timeout=settings.LLM_TIMEOUT_SECONDS,
+        max_retries=settings.LLM_MAX_RETRIES,
     )
 
 

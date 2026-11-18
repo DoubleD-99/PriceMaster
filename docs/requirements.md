@@ -116,6 +116,8 @@ PriceMaster — система агентного динамического ц�
 | `LLM_API_URL` | Адрес внешнего OpenAI-совместимого API |
 | `LLM_API_KEY` | Ключ внешнего API |
 | `LLM_MODEL` | Имя модели |
+| `LLM_TIMEOUT_SECONDS` | Таймаут одного HTTP-запроса к LLM |
+| `LLM_MAX_RETRIES` | Повторы сетевых ошибок/5xx клиента LLM |
 | `JWT_SECRET_KEY` | Секрет подписи JWT |
 | `ACCESS_KEY` | Мастер-ключ первичного входа |
 

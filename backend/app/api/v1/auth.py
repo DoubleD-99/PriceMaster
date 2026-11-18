@@ -39,7 +39,9 @@ async def login(body: LoginRequest, db: DbDep, request: Request) -> TokenRespons
             headers={"Retry-After": str(retry_after)},
         )
 
-    if not secrets.compare_digest(body.access_key, settings.ACCESS_KEY):
+    if not secrets.compare_digest(
+        body.access_key.encode("utf-8"), settings.ACCESS_KEY.encode("utf-8")
+    ):
         retry_after = login_limiter.register_failure(key)
         if retry_after is not None:
             raise ApiError(

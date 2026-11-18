@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     LLM_API_URL: str = ""
     LLM_API_KEY: str = ""
     LLM_MODEL: str = ""
+    LLM_TIMEOUT_SECONDS: float = 30.0
+    LLM_MAX_RETRIES: int = 1
     JWT_SECRET_KEY: str = ""
     ACCESS_KEY: str = ""
     LOGIN_MAX_ATTEMPTS: int = 5
