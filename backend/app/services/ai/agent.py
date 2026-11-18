@@ -1,41 +1,43 @@
-"""Оркестрация AI-агента: цикл Tool Calling (SDD §3.2.1).
+"""Оркестратор AI-агента: цикл Tool Calling (SDD §3.2.1).
 
-Поток (подключён к POST /recommendations/generate):
-1. system (prompts.py) + user о кандидате → chat.completions с tools=
+Поток (вызывается из POST /recommendations/generate):
+1. system (prompts.py) + user с контекстом -> chat.completions с tools=
    (whitelist из tools.REGISTRY, §3.2.2);
-2. LLM возвращает tool_calls → выполняем их через tools.call_tool
-   (read-only сессия БД, timeout 10 c) → результаты возвращаем модели;
+2. LLM возвращает tool_calls -> выполняем их через tools.call_tool
+   (read-only доступ, timeout 10 c) -> результаты возвращаем модели;
 3. повторяем до финального текстового ответа (не более MAX_TOOL_ITERATIONS);
-4. парсер извлекает JSON и валидирует AIRecommendationResponse (§6.1);
-   при ValidationError / битом JSON — retry с ремаркой (до 3 попыток, §8);
+4. парсим финальный JSON и валидируем AIRecommendationResponse (§6.1);
+   при ValidationError / битом JSON - retry с уточнением (до 3 попыток, §8);
 5. tool_calls_used перезаписывается реальным списком вызванных tools
-   (поле для аудита — не доверяем памяти LLM).
+   (поле для аудита - не доверяем модели).
 
-Изменение цены из агента НЕВОЗМОЖНО: tools только читают, запись цены —
+Автоматическое применение цены не допускается: tools только читают, применение -
 исключительно POST /recommendations/{id}/accept (§3.2.5).
 
-Клиент LLM инжектируется (параметр client) — unit-тесты гоняют цикл с
+Клиент LLM параметризуем (параметр client) - unit-тесты гоняют цикл с
 моком, без реального API (§7.1).
 """
 
 import json
+from datetime import UTC, datetime
 from typing import Any
 
 from openai import AsyncOpenAI
 from pydantic import ValidationError
 
 from backend.app.core.config import settings
+from backend.app.models import Product
 from backend.app.schemas.ai import AIRecommendationResponse
 from backend.app.services.ai import prompts, tools
 
-# Максимум последовательных вызовов tools в одном цикле (защита от зацикливания).
+# Лимит последовательных вызовов tools в одном цикле (защита от зацикливания).
 MAX_TOOL_ITERATIONS = 5
-# Попытки вытянуть валидный JSON из ответа LLM (риск «битого JSON», §8).
+# Попытки починить невалидный JSON от LLM (см. «Итоговый JSON», §8).
 MAX_REPAIR_ATTEMPTS = 3
 
 
 def make_client() -> AsyncOpenAI | None:
-    """Клиент внешнего OpenAI-совместимого API; None — если не сконфигурирован."""
+    """Создать клиент внешнего OpenAI-совместимого API; None - если не настроен."""
     if not settings.LLM_API_URL or not settings.LLM_API_KEY:
         return None
     return AsyncOpenAI(
@@ -44,10 +46,10 @@ def make_client() -> AsyncOpenAI | None:
 
 
 def parse_recommendation(text: str) -> AIRecommendationResponse:
-    """JSON из ответа LLM (терпим к ```json-обёртке) → Pydantic (§6.1).
+    """JSON из ответа LLM (часто в ```json-блоке) -> Pydantic (§6.1).
 
-    Битый JSON → json.JSONDecodeError, невалидные поля → ValidationError —
-    обе ошибки ловятся в retry-цикле analyze_product.
+    Битый JSON -> json.JSONDecodeError, нарушение схемы -> ValidationError -
+    это ошибки ловит и retry-цикл analyze_product.
     """
     cleaned = text.strip()
     if cleaned.startswith("```"):
@@ -58,7 +60,7 @@ def parse_recommendation(text: str) -> AIRecommendationResponse:
 
 
 async def _execute_tool_calls(tool_calls: list[Any], db: Any) -> list[dict]:
-    """Выполнить tool_calls из ответа LLM; аргументы-мусор — ошибка в результат."""
+    """Выполнить tool_calls из ответа LLM; аргументы-битые - ошибка в результат."""
     results = []
     for call in tool_calls:
         name = call.function.name
@@ -83,7 +85,7 @@ async def _parse_with_repair(
     content: str,
     db: Any,
 ) -> AIRecommendationResponse:
-    """Retry-цикл парсинга: битый ответ → ремарка → повторный запрос LLM."""
+    """Retry-цикл парсинга: битый ответ -> уточнить -> повторить запрос LLM."""
     text = content
     last_error: Exception | None = None
     for _ in range(MAX_REPAIR_ATTEMPTS):
@@ -113,17 +115,27 @@ async def analyze_product(
     db: Any,
     client: AsyncOpenAI | None = None,
 ) -> AIRecommendationResponse:
-    """Полный цикл анализа товара: tool calls → финальный JSON (§3.2.1)."""
+    """Полный цикл анализа товара: tool calls -> финальный JSON (§3.2.1)."""
     client = client or make_client()
     if client is None:
         raise RuntimeError(
-            "LLM API не настроен: заполни LLM_API_URL / LLM_API_KEY в .env"
+            "LLM API не настроен: задайте LLM_API_URL / LLM_API_KEY в .env"
         )
+
+    product_name = None
+    if db is not None:
+        product = await db.get(Product, product_id)
+        if product is not None:
+            product_name = getattr(product, "name", None)
+    today = datetime.now(UTC).date().isoformat()
+
     messages: list[dict] = [
         {"role": "system", "content": prompts.SYSTEM_PROMPT},
         {
             "role": "user",
-            "content": prompts.build_analysis_prompt(product_id),
+            "content": prompts.build_analysis_prompt(
+                product_id, store_id, today, product_name
+            ),
         },
     ]
     used_tools: list[str] = []
@@ -169,11 +181,10 @@ async def analyze_product(
             )
     else:
         raise RuntimeError(
-            f"Агент не вышел к финальному ответу за {MAX_TOOL_ITERATIONS} "
+            f"Агент не дошёл до финального ответа за {MAX_TOOL_ITERATIONS} "
             "итераций tool calls"
         )
 
     recommendation = await _parse_with_repair(client, messages, content, db)
-    if used_tools:  # аудит: реальный список вызовов, а не память LLM
-        recommendation.tool_calls_used = used_tools
+    recommendation.tool_calls_used = used_tools
     return recommendation

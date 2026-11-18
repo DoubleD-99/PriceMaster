@@ -287,6 +287,40 @@ class InventoryAlertsOut(BaseModel):
 
 
 # =========================
+# ANALYTICS
+# =========================
+
+
+class SalesSummaryOut(BaseModel):
+    total_revenue: Decimal
+    total_quantity: int
+    sales_count: int
+    average_check: Decimal
+
+
+class SalesByDayOut(BaseModel):
+    date: date
+    revenue: Decimal
+    quantity: int
+    sales_count: int
+    average_check: Decimal
+
+
+class SalesByProductOut(BaseModel):
+    product_id: int
+    revenue: Decimal
+    quantity: int
+    sales_count: int
+    average_check: Decimal
+
+
+class SalesAnalyticsOut(BaseModel):
+    summary: SalesSummaryOut
+    by_day: list[SalesByDayOut]
+    by_product: list[SalesByProductOut]
+
+
+# =========================
 # ERRORS
 # =========================
 

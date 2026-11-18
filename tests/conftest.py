@@ -25,6 +25,10 @@ import pytest_asyncio
 from sqlalchemy import delete, text
 from sqlalchemy.ext.asyncio import create_async_engine
 
+# Test-only secrets: config validates non-default values at import time.
+os.environ.setdefault("JWT_SECRET_KEY", "test-jwt-secret-key-0123456789abcdef")
+os.environ.setdefault("ACCESS_KEY", "test-access-key")
+
 from backend.app.core.config import settings
 from backend.app.core.rate_limit import login_limiter
 

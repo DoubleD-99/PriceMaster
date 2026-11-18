@@ -1,21 +1,10 @@
-"""AI и рекомендации — контракт SDD §6.4.
+"""AI и рекомендации - контракт SDD §6.4."""
 
-- POST /recommendations/generate — анализ одного товара или кандидатов
-  pipeline; результат сохраняется со статусом `pending`;
-- GET /recommendations — список рекомендаций магазина (фильтр `status`,
-  сортировка по `created_at` DESC);
-- POST /recommendations/{id}/accept — принять: `price_change` обновляет
-  `store_products` и пишет `price_history`; `reorder`/`write_off` меняют
-  только статус (D-08);
-- POST /recommendations/{id}/reject — отклонить без изменения цены (D-09).
-
-Требуется JWT + X-Store-ID; 404 — неизвестный id, 409 — повторная обработка.
-"""
-
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
 from backend.app.api.deps import DbDep, StoreDep
+from backend.app.api.errors import error_response
 from backend.app.schemas import (
     ErrorResponse,
     RecommendationGenerateRequest,
@@ -24,10 +13,12 @@ from backend.app.schemas import (
 )
 from backend.app.services import recommendations as service
 
-router = APIRouter(tags=["recommendations"])
+router = APIRouter(tags=["Рекомендации"])
 
 ERROR_RESPONSES = {
     400: {"model": ErrorResponse},
+    401: {"model": ErrorResponse},
+    403: {"model": ErrorResponse},
     404: {"model": ErrorResponse},
     409: {"model": ErrorResponse},
     502: {"model": ErrorResponse},
@@ -36,20 +27,19 @@ ERROR_RESPONSES = {
 
 
 def _recommendation_error(exc: service.RecommendationError) -> JSONResponse:
-    """Ответ в едином формате ошибок SDD §6.2."""
-    return JSONResponse(
+    return error_response(
         status_code=exc.status_code,
-        content={
-            "error_code": exc.error_code,
-            "message": exc.message,
-            "details": exc.details,
-        },
+        error_code=exc.error_code,
+        message=exc.message,
+        details=exc.details,
     )
 
 
 @router.post(
     "/recommendations/generate",
     response_model=list[RecommendationOut],
+    summary="Сгенерировать рекомендации",
+    description="Выбирает кандидатов, запускает AI-пайплайн и сохраняет pending-рекомендации.",
     responses=ERROR_RESPONSES,
 )
 async def generate_recommendations(
@@ -57,7 +47,6 @@ async def generate_recommendations(
     db: DbDep,
     store_id: StoreDep,
 ) -> list[RecommendationOut] | JSONResponse:
-    """Запустить анализ и сохранить новые рекомендации."""
     try:
         rows = await service.generate_recommendations(
             db,
@@ -74,14 +63,16 @@ async def generate_recommendations(
 @router.get(
     "/recommendations",
     response_model=list[RecommendationOut],
-    responses=ERROR_RESPONSES,
+    summary="Список рекомендаций",
+    responses={401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}},
 )
 async def list_recommendations(
     db: DbDep,
     store_id: StoreDep,
-    status: RecommendationStatus | None = None,
+    status: RecommendationStatus | None = Query(  # noqa: B008
+        default=None, description="Фильтр по статусу"
+    ),
 ) -> list[RecommendationOut]:
-    """Рекомендации магазина, новые сверху."""
     rows = await service.list_recommendations(db, store_id=store_id, status=status)
     return [RecommendationOut.model_validate(row) for row in rows]
 
@@ -89,6 +80,7 @@ async def list_recommendations(
 @router.post(
     "/recommendations/{recommendation_id}/accept",
     response_model=RecommendationOut,
+    summary="Принять рекомендацию",
     responses=ERROR_RESPONSES,
 )
 async def accept_recommendation(
@@ -96,7 +88,6 @@ async def accept_recommendation(
     db: DbDep,
     store_id: StoreDep,
 ) -> RecommendationOut | JSONResponse:
-    """Принять рекомендацию (human-in-the-loop)."""
     try:
         row = await service.accept_recommendation(
             db, store_id=store_id, recommendation_id=recommendation_id
@@ -110,6 +101,7 @@ async def accept_recommendation(
 @router.post(
     "/recommendations/{recommendation_id}/reject",
     response_model=RecommendationOut,
+    summary="Отклонить рекомендацию",
     responses=ERROR_RESPONSES,
 )
 async def reject_recommendation(
@@ -117,7 +109,6 @@ async def reject_recommendation(
     db: DbDep,
     store_id: StoreDep,
 ) -> RecommendationOut | JSONResponse:
-    """Отклонить рекомендацию без изменения цены."""
     try:
         row = await service.reject_recommendation(
             db, store_id=store_id, recommendation_id=recommendation_id

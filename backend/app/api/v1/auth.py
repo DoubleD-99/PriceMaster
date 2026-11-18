@@ -1,53 +1,54 @@
-"""Аутентификация — POST /auth/login (SDD, Приложение A, раздел 5).
-
-Body:   { "access_key": str }
-Response: { "token": str, "user_info": ... }
-
-Сверяет access_key с ACCESS_KEY из окружения (сравнение за постоянное
-время) и выдаёт JWT payload'ом { sub, store_ids } (SDD, раздел 3.4);
-store_ids — все магазины из таблицы `stores`. 401 при неверном ключе;
-429 + Retry-After после серии неудач с одного IP (rate limit).
-Дальнейшие запросы — `Authorization: Bearer <token>` (+ `X-Store-ID`).
-"""
+"""Аутентификация - POST /auth/login."""
 
 import secrets
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 from sqlalchemy import select
 
 from backend.app.api.deps import DbDep
+from backend.app.api.errors import ApiError
 from backend.app.core.config import settings
 from backend.app.core.rate_limit import client_ip, login_limiter
 from backend.app.core.security import create_access_token
 from backend.app.models import Store
-from backend.app.schemas import LoginRequest, TokenResponse, UserInfo
+from backend.app.schemas import ErrorResponse, LoginRequest, TokenResponse, UserInfo
 
-router = APIRouter(tags=["auth"])
+router = APIRouter(tags=["Аутентификация"])
 
 USERNAME = "admin"
 
 
-def _rate_limited(retry_after: int) -> HTTPException:
-    return HTTPException(
-        status_code=429,
-        detail="Слишком много попыток входа. Повторите позже.",
-        headers={"Retry-After": str(retry_after)},
-    )
-
-
-@router.post("/auth/login", response_model=TokenResponse)
+@router.post(
+    "/auth/login",
+    response_model=TokenResponse,
+    summary="Вход по access key",
+    description="Проверяет ACCESS_KEY и выдаёт JWT со списком доступных магазинов.",
+    responses={
+        401: {"model": ErrorResponse, "description": "Неверный access key"},
+        429: {"model": ErrorResponse, "description": "Слишком много попыток входа"},
+    },
+)
 async def login(body: LoginRequest, db: DbDep, request: Request) -> TokenResponse:
-    """Выдать JWT по мастер-ключу ACCESS_KEY с защитой от перебора."""
     key = client_ip(request)
     retry_after = login_limiter.check(key)
     if retry_after is not None:
-        raise _rate_limited(retry_after)
+        raise ApiError(
+            "RATE_LIMITED",
+            "Слишком много попыток входа. Попробуйте позже.",
+            status_code=429,
+            headers={"Retry-After": str(retry_after)},
+        )
 
     if not secrets.compare_digest(body.access_key, settings.ACCESS_KEY):
         retry_after = login_limiter.register_failure(key)
         if retry_after is not None:
-            raise _rate_limited(retry_after)
-        raise HTTPException(status_code=401, detail="Неверный access_key")
+            raise ApiError(
+                "RATE_LIMITED",
+                "Слишком много попыток входа. Попробуйте позже.",
+                status_code=429,
+                headers={"Retry-After": str(retry_after)},
+            )
+        raise ApiError("INVALID_ACCESS_KEY", "Неверный access_key", status_code=401)
 
     login_limiter.register_success(key)
     store_ids = list((await db.scalars(select(Store.id).order_by(Store.id))).all())

@@ -171,8 +171,8 @@ worker в dev.
 **Влияние.** Оркестратор считает `web` готовым раньше, чем API; production-like
 compose неполный.
 
-**Что сделать.** Добавить healthcheck (например, `wget -qO- http://localhost/`)
-и `depends_on: api: condition: service_healthy`.
+**Что сделано.** Добавлен healthcheck для `web` и `depends_on` на
+`api: condition: service_healthy`.
 
 ---
 

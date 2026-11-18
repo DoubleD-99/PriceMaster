@@ -1,25 +1,22 @@
-"""Магазины — GET /stores (SDD, Приложение A, раздел 5).
-
-Список доступных магазинов (таблица `stores`, 2–3 штуки — Приложение A,
-раздел 7). Используется PWA для выпадающего выбора магазина в шапке;
-выбранный магазин передаётся далее в заголовке X-Store-ID.
-
-Требуется JWT; ответ 401 без токена.
-"""
+"""Магазины - GET /stores."""
 
 from fastapi import APIRouter
 from sqlalchemy import select
 
 from backend.app.api.deps import DbDep, UserDep
 from backend.app.models import Store
-from backend.app.schemas import StoreOut
+from backend.app.schemas import ErrorResponse, StoreOut
 
-router = APIRouter(tags=["stores"])
+router = APIRouter(tags=["Магазины"])
 
 
-@router.get("/stores", response_model=list[StoreOut])
+@router.get(
+    "/stores",
+    response_model=list[StoreOut],
+    summary="Список доступных магазинов",
+    responses={401: {"model": ErrorResponse}},
+)
 async def list_stores(db: DbDep, user: UserDep) -> list[StoreOut]:
-    """Магазины, доступные текущему токену (store_ids из JWT)."""
     rows = await db.scalars(
         select(Store).where(Store.id.in_(user.store_ids)).order_by(Store.id)
     )

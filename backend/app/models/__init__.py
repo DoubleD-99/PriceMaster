@@ -28,6 +28,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
@@ -110,6 +111,11 @@ class SalesHistory(Base):
 
 class PriceHistory(Base):
     __tablename__ = "price_history"
+    __table_args__ = (
+        Index("ix_price_history_store_id", "store_id"),
+        Index("ix_price_history_product_id", "product_id"),
+        Index("ix_price_history_changed_at", "changed_at"),
+    )
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     product_id: Mapped[int] = mapped_column(
         ForeignKey("products.id", ondelete="restrict")
@@ -127,6 +133,11 @@ class PriceHistory(Base):
 
 class ExternalFactor(Base):
     __tablename__ = "external_factors"
+    __table_args__ = (
+        Index("ix_external_factors_store_id", "store_id"),
+        Index("ix_external_factors_date", "date"),
+        Index("ix_external_factors_store_date", "store_id", "date"),
+    )
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     store_id: Mapped[int] = mapped_column(ForeignKey("stores.id", ondelete="restrict"))
     date: Mapped[date] = mapped_column(Date)
@@ -137,6 +148,11 @@ class ExternalFactor(Base):
 
 class PriceRecommendation(Base):
     __tablename__ = "price_recommendations"
+    __table_args__ = (
+        Index("ix_price_recommendations_store_id", "store_id"),
+        Index("ix_price_recommendations_store_status", "store_id", "status"),
+        Index("ix_price_recommendations_created_at", "created_at"),
+    )
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     product_id: Mapped[int] = mapped_column(
         ForeignKey("products.id", ondelete="restrict")

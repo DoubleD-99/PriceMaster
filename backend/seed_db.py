@@ -9,14 +9,14 @@
 3. Заполняет 3 магазина, каталог, цены, остатки партиями, продажи
    за 6 месяцев с сезонностью, днями недели и demand_multiplier;
 4. Генерирует external_factors на исторический период + будущие 2 недели;
-5. Создаёт историю цен (price_history) и пустую таблицу рекомендаций.
+5. История цен (price_history); рекомендации не создаются
+   (генерируются через POST /recommendations/generate).
 
 Данные детерминированы (seed=42) — воспроизводимы между запусками.
 """
 
 import asyncio
 from datetime import UTC, datetime
-from decimal import Decimal
 
 from sqlalchemy import delete, func, select, text
 
@@ -104,35 +104,6 @@ async def seed() -> dict[str, int]:
 
         db.add_all(
             synthetic_data.make_price_history(stores, products, prices, today=today)
-        )
-        await db.flush()
-
-        # Заглушки рекомендаций для демо (agent ещё не генерировал).
-        db.add_all(
-            [
-                PriceRecommendation(
-                    product_id=products[0].id,  # Молоко 3.2%
-                    store_id=stores[0].id,
-                    action_type="price_change",
-                    recommended_value=(
-                        prices[(stores[0].id, products[0].id)] * Decimal("0.9")
-                    ).quantize(Decimal("0.01")),
-                    reasoning="Срок годности заканчивается через 2 дня, снижаем цену, чтобы избежать списания.",
-                    confidence=0.85,
-                    status="pending",
-                    expected_impact=Decimal("-120.00"),
-                ),
-                PriceRecommendation(
-                    product_id=products[5].id,  # Филе куриное
-                    store_id=stores[1].id,
-                    action_type="reorder",
-                    recommended_value=Decimal("24.00"),
-                    reasoning="Остаток ниже min_stock, спрос стабильный, закупка на 2 недели.",
-                    confidence=0.9,
-                    status="pending",
-                    expected_impact=Decimal("0.00"),
-                ),
-            ]
         )
         await db.flush()
 
