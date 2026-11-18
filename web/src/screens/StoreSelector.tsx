@@ -1,18 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { api } from '../api/client'
+import { getErrorMessage } from '../api/errors'
+import { listStores } from '../api/endpoints'
 import { Alert } from '../components/ui/Alert'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Spinner } from '../components/ui/Spinner'
 import { useStoreContext } from '../stores/storeContext'
-
-// GET /stores (SDD §A.5): список магазинов, доступных токену.
-interface Store {
-  id: number
-  name: string
-}
+import type { Store } from '../types/api'
 
 export function StoreSelector() {
   const navigate = useNavigate()
@@ -22,16 +18,25 @@ export function StoreSelector() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api
-      .get<Store[]>('/stores')
-      .then((response) => setStores(response.data))
-      .catch(() => setError('Не удалось загрузить список магазинов.'))
-      .finally(() => setLoading(false))
+    let cancelled = false
+    listStores()
+      .then((rows) => {
+        if (!cancelled) setStores(rows)
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(getErrorMessage(err))
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   function handleSelect(id: number) {
     setStoreId(id)
-    navigate('/')
+    navigate('/dashboard')
   }
 
   return (

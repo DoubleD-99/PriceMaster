@@ -14,7 +14,7 @@ PY      ?= .venv/bin/python
 endif
 PYTEST  ?= $(PY) -m pytest
 
-.PHONY: help install db db-down api seed test web web-install web-build dc-up dc-down
+.PHONY: help install db db-down api seed test web web-install web-build web-test web-lint dc-up dc-down
 
 define _HELP_MESSAGE
   Available commands:
@@ -28,6 +28,8 @@ define _HELP_MESSAGE
     web-install Install frontend dependencies (npm install)
     web         Run Vite dev server (port 5173, proxy /api -> :8000)
     web-build   Build frontend static assets (web/dist)
+    web-test    Run frontend unit tests (Vitest)
+    web-lint    Lint frontend sources (oxlint)
     dc-up       Start all Docker services (db, api, web)
     dc-down     Stop Docker services
 endef
@@ -62,6 +64,12 @@ web: ## Запустить Vite dev-сервер (порт 5173, proxy /api -> :
 
 web-build: ## Собрать статику фронтенда (web/dist)
 	npm --prefix web run build
+
+web-test: ## Прогнать автотесты фронтенда (Vitest)
+	npm --prefix web test
+
+web-lint: ## Проверить линтером код фронтенда (oxlint)
+	npm --prefix web run lint
 
 dc-up: ## Поднять все сервисы в Docker (db, api, web)
 	docker compose up --build
