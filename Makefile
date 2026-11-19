@@ -1,14 +1,4 @@
-# =========================================================================
-# PriceMaster — Makefile быстрого локального запуска
-# =========================================================================
-# Перед первым запуском:
-#   1) python -m venv .venv
-#   2) make install
-#   3) скопировать .env.example -> .env и заполнить значения
-# Зависимость: установленный make (на Windows: `choco install make`, WSL или Git Bash)
-# и Node.js + npm для фронтенда (цели web*).
 # Переменные окружения подтягиваются из .env.
-#
 # Активировать venv вручную не нужно и нельзя: каждый рецепт make —
 # отдельный процесс, активация не «переживает» его. Поэтому вызываем
 # интерпретатор venv напрямую через PY.
@@ -24,10 +14,8 @@ PY      ?= .venv/bin/python
 endif
 PYTEST  ?= $(PY) -m pytest
 
-.PHONY: help install db db-down api seed test web web-install web-build dc-up dc-down
+.PHONY: help install db db-down api seed test web web-install web-build web-test web-lint dc-up dc-down
 
-# Help text is ASCII-only on purpose: it renders correctly under any
-# terminal/codepage (cmd cp866, PowerShell, WSL, Git Bash) without tricks.
 define _HELP_MESSAGE
   Available commands:
     help        Show this help
@@ -40,6 +28,8 @@ define _HELP_MESSAGE
     web-install Install frontend dependencies (npm install)
     web         Run Vite dev server (port 5173, proxy /api -> :8000)
     web-build   Build frontend static assets (web/dist)
+    web-test    Run frontend unit tests (Vitest)
+    web-lint    Lint frontend sources (oxlint)
     dc-up       Start all Docker services (db, api, web)
     dc-down     Stop Docker services
 endef
@@ -74,6 +64,12 @@ web: ## Запустить Vite dev-сервер (порт 5173, proxy /api -> :
 
 web-build: ## Собрать статику фронтенда (web/dist)
 	npm --prefix web run build
+
+web-test: ## Прогнать автотесты фронтенда (Vitest)
+	npm --prefix web test
+
+web-lint: ## Проверить линтером код фронтенда (oxlint)
+	npm --prefix web run lint
 
 dc-up: ## Поднять все сервисы в Docker (db, api, web)
 	docker compose up --build

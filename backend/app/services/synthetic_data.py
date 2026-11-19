@@ -26,8 +26,10 @@ from backend.app.models import (
     Store,
     StoreProduct,
 )
+from backend.app.services.calculations import round_money
 from backend.app.services.external_factors import (
     demand_multiplier_for,
+    is_public_holiday,
     weather_for,
 )
 
@@ -54,6 +56,44 @@ CATALOG = [
     ("Помидоры, 1 кг", "Овощи и фрукты", "190.00", 7, 15),
     ("Бананы, 1 кг", "Овощи и фрукты", "110.00", 7, 20),
     ("Вода питьевая, 1.5 л", "Напитки", "35.00", 300, 25),
+    ("Мороженое пломбир, 100 г", "Мороженое", "55.00", 90, 20),
+    ("Мороженое фруктовый лёд, 80 г", "Мороженое", "35.00", 120, 20),
+    ("Квас, 1.5 л", "Напитки", "60.00", 60, 15),
+    ("Лимонад, 1 л", "Напитки", "70.00", 120, 15),
+    ("Апельсиновый сок, 1 л", "Напитки", "95.00", 30, 12),
+    ("Пиво светлое, 0.5 л", "Напитки", "80.00", 90, 12),
+    ("Чай чёрный, 25 пакетиков", "Горячие напитки", "120.00", 365, 10),
+    ("Кофе молотый, 250 г", "Горячие напитки", "320.00", 365, 8),
+    ("Какао, 400 г", "Горячие напитки", "180.00", 365, 8),
+    ("Мандарины, 1 кг", "Праздничные", "150.00", 14, 15),
+    ("Шампанское, 0.75 л", "Праздничные", "450.00", 365, 6),
+    ("Шоколад новогодний, 100 г", "Праздничные", "90.00", 180, 12),
+    ("Горошек зелёный, 400 г", "Праздничные", "70.00", 365, 10),
+    ("Сельдь слабосолёная, 300 г", "Праздничные", "220.00", 10, 8),
+    ("Арбуз, 1 кг", "Овощи и фрукты", "60.00", 10, 20),
+    ("Клубника, 500 г", "Овощи и фрукты", "180.00", 5, 10),
+    ("Огурцы, 1 кг", "Овощи и фрукты", "120.00", 7, 15),
+    ("Зелень, 100 г", "Овощи и фрукты", "45.00", 5, 10),
+    ("Суп-пюре грибной, 500 г", "Бакалея", "130.00", 180, 8),
+    ("Лапша быстрого приготовления, 90 г", "Бакалея", "35.00", 180, 15),
+    ("Печенье овсяное, 300 г", "Кондитерские", "85.00", 90, 12),
+    ("Шоколад молочный, 100 г", "Кондитерские", "80.00", 180, 12),
+    ("Пряники медовые, 400 г", "Кондитерские", "120.00", 60, 8),
+    # --- погодозависимые (лето / жаркая погода) ---
+    ("Лимонад классический, 1 л", "Напитки", "55.00", 120, 15),
+    ("Кола, 1 л", "Напитки", "75.00", 120, 12),
+    ("Айран, 500 мл", "Молочные", "45.00", 7, 10),
+    ("Сок яблочный, 1 л", "Напитки", "95.00", 30, 12),
+    ("Вишня, 1 кг", "Овощи и фрукты", "220.00", 7, 10),
+    ("Персики, 1 кг", "Овощи и фрукты", "250.00", 7, 10),
+    # --- погодозависимые (зима / холод) ---
+    ("Глинтвейн безалкогольный, 1 л", "Горячие напитки", "110.00", 30, 8),
+    ("Чай зелёный, 20 пакетиков", "Горячие напитки", "100.00", 365, 8),
+    # --- праздничные / spikes в официальные праздники ---
+    ("Оливье готовый, 400 г", "Праздничные", "180.00", 3, 6),
+    ("Крабовые палочки, 240 г", "Праздничные", "150.00", 10, 8),
+    ("Икра красная, 140 г", "Праздничные", "650.00", 180, 4),
+    ("Конфеты новогодние в коробке, 300 г", "Кондитерские", "220.00", 180, 8),
 ]
 
 CATEGORY_MARKUP = {
@@ -64,12 +104,79 @@ CATEGORY_MARKUP = {
     "Бакалея": Decimal("1.45"),
     "Овощи и фрукты": Decimal("1.50"),
     "Напитки": Decimal("1.60"),
+    "Мороженое": Decimal("1.70"),
+    "Горячие напитки": Decimal("1.55"),
+    "Праздничные": Decimal("1.55"),
+    "Кондитерские": Decimal("1.50"),
+}
+
+# Во сколько раз категория чувствительнее среднего спроса к погоде.
+CATEGORY_WEATHER_DEMAND = {
+    "Мороженое": {
+        "sunny": Decimal("1.70"),
+        "rain": Decimal("0.55"),
+        "snow": Decimal("0.35"),
+    },
+    "Напитки": {
+        "sunny": Decimal("1.35"),
+        "rain": Decimal("0.85"),
+        "snow": Decimal("0.75"),
+    },
+    "Горячие напитки": {
+        "sunny": Decimal("0.80"),
+        "rain": Decimal("1.20"),
+        "snow": Decimal("1.40"),
+    },
+    "Овощи и фрукты": {
+        "sunny": Decimal("1.15"),
+        "rain": Decimal("0.95"),
+        "snow": Decimal("0.90"),
+    },
+    "Кондитерские": {
+        "sunny": Decimal("0.95"),
+        "rain": Decimal("1.10"),
+        "snow": Decimal("1.05"),
+    },
+    "Хлеб": {
+        "sunny": Decimal("1.00"),
+        "rain": Decimal("1.05"),
+        "snow": Decimal("1.05"),
+    },
+    "Бакалея": {
+        "sunny": Decimal("1.00"),
+        "rain": Decimal("1.00"),
+        "snow": Decimal("1.05"),
+    },
+}
+
+# Дополнительный спрос в официальные праздники (не каждые выходные).
+CATEGORY_HOLIDAY_DEMAND = {
+    "Праздничные": Decimal("1.80"),
+    "Напитки": Decimal("1.25"),
+    "Кондитерские": Decimal("1.20"),
+    "Мясо": Decimal("1.15"),
+    "Овощи и фрукты": Decimal("1.10"),
+    "Горячие напитки": Decimal("1.10"),
+    "Молочные": Decimal("1.05"),
+    "Хлеб": Decimal("1.05"),
 }
 
 
 def price_for(base_cost: Decimal, category: str) -> Decimal:
-    """Розничная цена = себестоимость × наценка категории (2 знака)."""
-    return (base_cost * CATEGORY_MARKUP[category]).quantize(Decimal("0.01"))
+    """Розничная цена = себестоимость × наценка категории (1 знак)."""
+    return round_money(base_cost * CATEGORY_MARKUP[category])
+
+
+def product_demand_multiplier(day: date, product: Product) -> Decimal:
+    """Спрос товара: общий множитель магазина × погода × праздник категории."""
+    weather = weather_for(day)
+    multiplier = demand_multiplier_for(day, weather)
+    multiplier *= CATEGORY_WEATHER_DEMAND.get(product.category, {}).get(
+        weather, Decimal("1.00")
+    )
+    if is_public_holiday(day):
+        multiplier *= CATEGORY_HOLIDAY_DEMAND.get(product.category, Decimal("1.00"))
+    return multiplier
 
 
 def make_stores() -> list[Store]:
@@ -80,12 +187,12 @@ def make_stores() -> list[Store]:
 
 
 def make_products() -> list[Product]:
-    """Общий каталог: 12 позиций разных категорий и срока годности."""
+    """Общий каталог: позиции разных категорий, сроков и профилей спроса."""
     return [
         Product(
             name=name,
             category=category,
-            base_cost=Decimal(base_cost),
+            base_cost=round_money(Decimal(base_cost)),
             shelf_life_days=shelf_life,
             min_stock=min_stock,
         )
@@ -117,7 +224,7 @@ def make_store_products(
                 StoreProduct(
                     store_id=store.id,
                     product_id=product.id,
-                    current_price=(base * (1 + factor)).quantize(Decimal("0.01")),
+                    current_price=round_money(base * (1 + factor)),
                     is_active=True,
                 )
             )
@@ -186,7 +293,7 @@ def make_sales(
     today: date,
     rng: random.Random | None = None,
 ) -> list[SalesHistory]:
-    """Продажи за HISTORY_DAYS: день недели × сезон/погода × шум; 0 пропускаем."""
+    """Продажи за HISTORY_DAYS: день недели × сезон/погода × профиль категории."""
     rng = rng or random.Random(RNG_SEED + 2)
     rows: list[SalesHistory] = []
     start = today - timedelta(days=HISTORY_DAYS)
@@ -197,13 +304,13 @@ def make_sales(
             price = prices[(store.id, product.id)]
             day = start
             while day < today:
-                multiplier = demand_multiplier_for(day, weather_for(day))
+                multiplier = product_demand_multiplier(day, product)
                 noise = Decimal(str(round(rng.uniform(0.5, 1.5), 2)))
                 quantity = int(base_daily * float(multiplier) * float(noise))
                 if quantity > 0:
-                    sale_price = (
+                    sale_price = round_money(
                         price * Decimal(str(round(rng.uniform(0.98, 1.02), 4)))
-                    ).quantize(Decimal("0.01"))
+                    )
                     rows.append(
                         SalesHistory(
                             store_id=store.id,
@@ -225,25 +332,28 @@ def make_price_history(
     today: date,
     rng: random.Random | None = None,
 ) -> list[PriceHistory]:
-    """0–3 изменения цены за исторический период (лёгкие колебания ±10%)."""
+    """1–3 изменения цены за исторический период (лёгкие колебания ±10%)."""
     rng = rng or random.Random(RNG_SEED + 3)
     rows: list[PriceHistory] = []
     for store in stores:
         for product in products:
             current = prices[(store.id, product.id)]
-            for _ in range(rng.randint(0, 3)):
-                days_ago = rng.randint(1, HISTORY_DAYS)
-                old_price = (
-                    current * Decimal(str(round(rng.uniform(0.9, 1.1), 4)))
-                ).quantize(Decimal("0.01"))
+            count = rng.randint(1, 3)
+            levels = [current]
+            for _ in range(count):
+                factor = Decimal(str(round(rng.uniform(0.9, 1.1), 4)))
+                levels.append(round_money(levels[-1] * factor))
+            levels.reverse()
+            days_ago = sorted(rng.sample(range(1, HISTORY_DAYS), count), reverse=True)
+            for index, days in enumerate(days_ago):
                 rows.append(
                     PriceHistory(
                         store_id=store.id,
                         product_id=product.id,
-                        old_price=old_price,
-                        new_price=current,
+                        old_price=levels[index],
+                        new_price=levels[index + 1],
                         changed_at=datetime.combine(
-                            today - timedelta(days=days_ago),
+                            today - timedelta(days=days),
                             time(10),
                             tzinfo=UTC,
                         ),

@@ -15,8 +15,9 @@
 engine SQLAlchemy создаёт соединения в нем же — без конфликтов циклов.
 """
 
+import json
 import os
-from unittest.mock import AsyncMock
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -24,7 +25,12 @@ import pytest_asyncio
 from sqlalchemy import delete, text
 from sqlalchemy.ext.asyncio import create_async_engine
 
+# Test-only secrets: config validates non-default values at import time.
+os.environ.setdefault("JWT_SECRET_KEY", "test-jwt-secret-key-0123456789abcdef")
+os.environ.setdefault("ACCESS_KEY", "test-access-key")
+
 from backend.app.core.config import settings
+from backend.app.core.rate_limit import login_limiter
 
 # Тестовая БД — отдельная от dev: make test не трогает разработческие данные.
 # ВАЖНО: пропатчить settings ДО импорта db.session (engine создаётся при импорте).
@@ -100,6 +106,14 @@ async def clean_tables(db_schema):
     yield
 
 
+@pytest.fixture(autouse=True)
+def reset_login_limiter():
+    """Не давать лимиту логина протекать между тестами."""
+    login_limiter.reset()
+    yield
+    login_limiter.reset()
+
+
 @pytest_asyncio.fixture
 async def api_client():
     """HTTP-клиент против FastAPI-приложения (без реального сервера)."""
@@ -162,8 +176,38 @@ async def auth_client(api_client, shop) -> httpx.AsyncClient:
     return api_client
 
 
+class FakeLLM:
+    """OpenAI-совместимый клиент с очередью ответов для теста «API → агент»."""
+
+    def __init__(self) -> None:
+        self.calls: list[dict] = []
+        self._responses: list[SimpleNamespace] = []
+        self._call_id = 0
+        self.chat = SimpleNamespace(completions=self)
+
+    def queue_tool_call(self, name: str, arguments: dict) -> None:
+        self._call_id += 1
+        tool_call = SimpleNamespace(
+            id=f"call_{self._call_id}",
+            function=SimpleNamespace(name=name, arguments=json.dumps(arguments)),
+        )
+        message = SimpleNamespace(content=None, tool_calls=[tool_call])
+        self._responses.append(
+            SimpleNamespace(choices=[SimpleNamespace(message=message)])
+        )
+
+    def queue_final(self, payload: dict) -> None:
+        message = SimpleNamespace(content=json.dumps(payload), tool_calls=None)
+        self._responses.append(
+            SimpleNamespace(choices=[SimpleNamespace(message=message)])
+        )
+
+    async def create(self, **kwargs) -> SimpleNamespace:
+        self.calls.append(kwargs)
+        return self._responses.pop(0)
+
+
 @pytest.fixture
-def mock_llm() -> AsyncMock:
-    """Заглушка LLM-вызова (OpenAI-совместимый API) — реальный мок появится
-    вместе с интеграцией агента в Итерации 2."""
-    return AsyncMock()
+def mock_llm() -> FakeLLM:
+    """Заглушка LLM-вызова (OpenAI-совместимый API) для «API → агент»."""
+    return FakeLLM()

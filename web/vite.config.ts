@@ -2,11 +2,12 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// Пути API из ТЗ (SDD, A.5) монтируются без общего префикса, поэтому
+// Пути API из ТЗ монтируются без общего префикса, поэтому
 // в dev проксируем каждый префикс на FastAPI — без CORS и без правок
 // фронтенд-кода. В проде то же делают nginx (см. web/nginx.conf).
 const API_PREFIXES = [
   'auth',
+  'health',
   'stores',
   'products',
   'inventory',

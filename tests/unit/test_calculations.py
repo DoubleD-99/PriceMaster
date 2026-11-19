@@ -1,7 +1,7 @@
 """Unit-тесты расчётных функций (SDD §6.3, §3.2.3; docs/agents.md, правило 2).
 
 Числа для рекомендаций считаются ТОЛЬКО здесь — тесты фиксируют формулы:
-- expected_impact = (new_price - base_cost) * forecast - current_profit;
+- expected_impact = profit_new - profit_current, включая списание партий;
 - reorder = ceil(спрос x срок поставки + min_stock - остаток).
 """
 
@@ -11,14 +11,14 @@ from backend.app.services import calculations as calc
 
 
 def test_margin_pct() -> None:
-    assert calc.margin_pct(60, 100) == Decimal("40.00")
-    assert calc.margin_pct(Decimal("65.50"), Decimal("100.00")) == Decimal("34.50")
-    assert calc.margin_pct(60, 0) == Decimal("0.00")  # деление на ноль обезврежено
+    assert calc.margin_pct(60, 100) == Decimal("40.0")
+    assert calc.margin_pct(Decimal("65.50"), Decimal("100.00")) == Decimal("34.5")
+    assert calc.margin_pct(60, 0) == Decimal("0.0")  # деление на ноль обезврежено
 
 
 def test_discount_price() -> None:
-    assert calc.discount_price(200, 10) == Decimal("180.00")
-    assert calc.discount_price(Decimal("99.99"), Decimal("15.5")) == Decimal("84.49")
+    assert calc.discount_price(200, 10) == Decimal("180.0")
+    assert calc.discount_price(Decimal("99.99"), Decimal("15.5")) == Decimal("84.5")
 
 
 def test_forecast_sales() -> None:
@@ -36,7 +36,7 @@ def test_margin_impact_formula() -> None:
         avg_daily_sales=1,
         demand_multiplier=1.2,
     )
-    assert impact == Decimal("360.00")
+    assert impact == Decimal("360.0")
 
 
 def test_margin_impact_negative_when_price_drops() -> None:
@@ -51,7 +51,21 @@ def test_margin_impact_negative_when_price_drops() -> None:
 
 def test_margin_impact_no_sales_no_effect() -> None:
     impact = calc.margin_impact(65, 89.99, 99.99, avg_daily_sales=0)
-    assert impact == Decimal("0.00")
+    assert impact == Decimal("0.0")
+
+
+def test_margin_impact_includes_avoided_write_off() -> None:
+    without_stock = calc.margin_impact(80, 100, 90, avg_daily_sales=1)
+    with_stock = calc.margin_impact(
+        80,
+        100,
+        90,
+        avg_daily_sales=1,
+        total_stock=60,
+        at_risk_quantity=60,
+    )
+    assert without_stock == Decimal("-300.0")
+    assert with_stock == Decimal("333.3")
 
 
 def test_reorder_amount_basic() -> None:

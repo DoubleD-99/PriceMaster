@@ -1,23 +1,20 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { isAxiosError } from 'axios'
 
-import { api } from '../api/client'
+import { getLoginErrorMessage } from '../api/errors'
+import { login as loginRequest } from '../api/endpoints'
 import { Alert } from '../components/ui/Alert'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
 import { useAuthStore } from '../stores/authStore'
-
-// Контракт POST /auth/login (SDD §A.5): { token, user_info }.
-interface LoginResponse {
-  token: string
-}
+import { useStoreContext } from '../stores/storeContext'
 
 export function AuthScreen() {
   const navigate = useNavigate()
   const login = useAuthStore((state) => state.login)
+  const setStoreId = useStoreContext((state) => state.setStoreId)
   const [accessKey, setAccessKey] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -27,21 +24,12 @@ export function AuthScreen() {
     setLoading(true)
     setError(null)
     try {
-      const { data } = await api.post<LoginResponse>('/auth/login', {
-        access_key: accessKey,
-      })
-      login(data.token)
+      const result = await loginRequest(accessKey)
+      login(result.token)
+      setStoreId(null)
       navigate('/select-store')
     } catch (err) {
-      if (isAxiosError(err) && err.response) {
-        setError(
-          err.response.status === 401 || err.response.status === 403
-            ? 'Неверный ключ доступа.'
-            : 'Ошибка сервера. Попробуйте позже.',
-        )
-      } else {
-        setError('Сервер недоступен. Проверьте соединение.')
-      }
+      setError(getLoginErrorMessage(err))
     } finally {
       setLoading(false)
     }
