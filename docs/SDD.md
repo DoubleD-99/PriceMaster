@@ -149,14 +149,22 @@ B-08 закрыт.
 `calculations.margin_impact`:
 
 ```text
-forecast_sales = avg_daily_sales × demand_multiplier × FORECAST_DAYS
-new_profit     = (new_price − base_cost) × forecast_sales
-current_profit = (current_price − base_cost) × forecast_sales
-expected_impact = new_profit − current_profit
+forecast_sales  = avg_daily_sales × demand_multiplier × FORECAST_DAYS
+sold_current    = min(forecast_sales, total_stock)
+sold_new        = min(forecast_sales × (current_price / new_price)², total_stock)
+at_risk         = остаток партий со сроком 0..FORECAST_DAYS дней
+write_off_base  = max(0, at_risk − min(sold_current, at_risk))
+write_off_new   = max(0, at_risk − min(sold_new, at_risk))
+profit_current  = (current_price − base_cost) × sold_current − write_off_base × base_cost
+profit_new      = (new_price − base_cost) × sold_new − write_off_new × base_cost
+expected_impact = profit_new − profit_current
 ```
 
-`FORECAST_DAYS = 30`, `LEAD_TIME_DAYS = 3`. В рекомендацию попадает готовое
-число.
+Скидка увеличивает объём продаж в квадрате обратного отношения цен
+(эластичность спроса = 2): часть партии, которая иначе ушла бы в списание,
+продаётся по новой цене. Если данных об остатках нет, используется упрощённая разница маржи
+на одинаковом прогнозе продаж. `FORECAST_DAYS = 30`, `LEAD_TIME_DAYS = 3`. В
+рекомендацию попадает готовое число.
 
 ### 6.4. Контракт рекомендаций
 
@@ -173,7 +181,11 @@ expected_impact = new_profit − current_profit
 `status` — `pending | accepted | rejected`.
 
 `generate` без `product_id` берёт кандидатов из алертов (истекающий срок,
-остаток ниже `min_stock`) и анализирует не больше `limit`. Ошибки — §6.2:
+остаток ниже `min_stock`), пропускает товары, по которым в магазине уже есть
+рекомендации, сортирует по `id` и анализирует до `limit` успешных результатов
+(ошибка анализа одного кандидата не блокирует остальных); результат с
+`recommended_value = 0` («ничего не менять») сохраняется со статусом `rejected`.
+Целевой анализ по `product_id` выполняется всегда. Ошибки — §6.2:
 `PRODUCT_NOT_FOUND` 404, `RECOMMENDATION_NOT_FOUND` 404,
 `RECOMMENDATION_ALREADY_PROCESSED` 409, `STORE_PRODUCT_NOT_FOUND` 404,
 `LLM_NOT_CONFIGURED` 503, `LLM_INVALID_RESPONSE` 502, `LLM_ERROR` 502.

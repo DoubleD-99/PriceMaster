@@ -1,7 +1,9 @@
 import type {
   InventoryAlerts,
   InventoryItem,
+  PriceHistoryEntry,
   Product,
+  ProductPrice,
   ReceivingRequest,
   ReceivingResult,
   Recommendation,
@@ -35,6 +37,17 @@ const products: Product[] = [
   { id: 3, name: 'Кофе в зёрнах', category: 'Бакалея', base_cost: '320.00', shelf_life_days: 180, min_stock: 3 },
 ]
 
+const prices: ProductPrice[] = [
+  { product_id: 1, store_id: 1, current_price: '95.0' },
+  { product_id: 2, store_id: 1, current_price: '55.0' },
+  { product_id: 3, store_id: 1, current_price: '690.0' },
+]
+
+const priceHistory: PriceHistoryEntry[] = [
+  { id: 1, product_id: 1, store_id: 1, old_price: '89.0', new_price: '95.0', changed_at: addDays(-10) + 'T10:00:00.000Z', recommendation_id: null },
+  { id: 2, product_id: 2, store_id: 1, old_price: '52.0', new_price: '55.0', changed_at: addDays(-5) + 'T10:00:00.000Z', recommendation_id: null },
+]
+
 const barcodes: Record<string, number> = {
   '4600000000001': 1,
   '4600000000002': 2,
@@ -53,7 +66,9 @@ let recommendations: Recommendation[] = [
     product_id: 1,
     store_id: 1,
     action_type: 'price_change',
-    recommended_value: '89.90',
+    recommended_value: '89.9',
+    current_price: '95.0',
+    current_stock: 12,
     reasoning: 'Срок годности истекает через 2 дня, спрос падает. Снижение цены уменьшит риск списания.',
     confidence: 0.82,
     status: 'pending',
@@ -66,6 +81,8 @@ let recommendations: Recommendation[] = [
     store_id: 1,
     action_type: 'reorder',
     recommended_value: '24',
+    current_price: '55.0',
+    current_stock: 4,
     reasoning: 'Остаток ниже минимального, спрос стабильный. Нужно пополнить склад.',
     confidence: 0.74,
     status: 'pending',
@@ -146,6 +163,14 @@ export const mockApi = {
     return found
   },
 
+  async getProductPrice(productId: number): Promise<ProductPrice | null> {
+    return prices.find((row) => row.product_id === productId) ?? null
+  },
+
+  async getPriceHistory(productId: number): Promise<PriceHistoryEntry[]> {
+    return priceHistory.filter((row) => row.product_id === productId)
+  },
+
   async createReceiving(body: ReceivingRequest): Promise<ReceivingResult> {
     const found = inventory.find(
       (row) =>
@@ -216,7 +241,9 @@ export const mockApi = {
       product_id: productId,
       store_id: 1,
       action_type: 'price_change',
-      recommended_value: '99.90',
+      recommended_value: '99.9',
+      current_price: prices.find((row) => row.product_id === productId)?.current_price ?? null,
+      current_stock: 8,
       reasoning: 'Демо-рекомендация из mock-режима. Реальные данные появятся после подключения API.',
       confidence: 0.7,
       status: 'pending',

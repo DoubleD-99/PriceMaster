@@ -23,7 +23,7 @@
 
 import asyncio
 from collections.abc import Callable, Coroutine
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -108,7 +108,7 @@ class CalculateReorderAmountArgs(BaseModel):
 class CalculateMarginImpactArgs(BaseModel):
     product_id: int = Field(description="ID товара")
     store_id: int = Field(description="ID магазина")
-    new_price: Decimal = Field(gt=0, description="Предлагаемая новая цена")
+    new_price: float = Field(description="Предлагаемая новая цена")
 
 
 # --------------------------------------------------------------------- вызов
@@ -193,6 +193,27 @@ async def _demand_multiplier(db: AsyncSession, store_id: int, day: date) -> Deci
         )
     )
     return row if row is not None else Decimal(1)
+
+
+async def _expiry_risk(
+    db: AsyncSession, product_id: int, store_id: int, today: date
+) -> tuple[int, int]:
+    """Всего в наличии и сколько партий истекает в горизонте прогноза."""
+    rows = (
+        await db.execute(
+            select(Inventory.quantity, Inventory.expiry_date).where(
+                Inventory.product_id == product_id,
+                Inventory.store_id == store_id,
+                Inventory.quantity > 0,
+            )
+        )
+    ).all()
+    horizon_end = today + timedelta(days=calculations.FORECAST_DAYS)
+    total = sum(quantity for quantity, _ in rows)
+    at_risk = sum(
+        quantity for quantity, expiry in rows if today <= expiry <= horizon_end
+    )
+    return total, at_risk
 
 
 # --------------------------------------------------------------------- tools
@@ -377,8 +398,9 @@ async def calculate_reorder_amount(
     name="calculate_margin_impact",
     description=(
         "Ожидаемый эффект (в деньгах за горизонт прогноза) от смены цены на "
-        "new_price при текущем спросе и внешних факторах. Считает "
-        "Python-функция — число НЕ придумывай, используй результат как есть."
+        "new_price при текущем спросе, внешних факторах и риске списания "
+        "партий с коротким сроком годности. Считает Python-функция — число "
+        "НЕ придумывай, используй результат как есть."
     ),
     args_schema=CalculateMarginImpactArgs,
 )
@@ -406,26 +428,40 @@ async def calculate_margin_impact(
                 f"id={args.store_id} нет активной цены"
             ),
         }
+    if args.new_price <= 0:
+        return {
+            "error_code": "TOOL_BAD_ARGUMENTS",
+            "message": "Новая цена должна быть больше нуля",
+        }
     avg_daily = await _avg_daily_sales(
         db, args.product_id, args.store_id, calculations.FORECAST_DAYS
     )
-    multiplier = await _demand_multiplier(db, args.store_id, datetime.now(UTC).date())
+    today = datetime.now(UTC).date()
+    multiplier = await _demand_multiplier(db, args.store_id, today)
+    total_stock, at_risk_quantity = await _expiry_risk(
+        db, args.product_id, args.store_id, today
+    )
+    new_price = calculations.round_money(args.new_price)
     impact = calculations.margin_impact(
         product.base_cost,
         price_row,
-        args.new_price,
+        new_price,
         avg_daily,
         multiplier,
+        total_stock=total_stock,
+        at_risk_quantity=at_risk_quantity,
     )
     return {
         "product_id": args.product_id,
         "store_id": args.store_id,
-        "base_cost": float(product.base_cost),
-        "current_price": float(price_row),
-        "new_price": float(args.new_price),
+        "base_cost": float(calculations.round_money(product.base_cost)),
+        "current_price": float(calculations.round_money(price_row)),
+        "new_price": float(new_price),
         "avg_daily_sales": float(avg_daily),
         "demand_multiplier": float(multiplier),
         "forecast_days": calculations.FORECAST_DAYS,
         "forecast_sales": float(calculations.forecast_sales(avg_daily, multiplier)),
+        "total_stock": total_stock,
+        "at_risk_quantity": at_risk_quantity,
         "expected_impact": float(impact),
     }

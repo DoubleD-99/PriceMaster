@@ -28,6 +28,31 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+html {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(154, 160, 195, 0.5) transparent;
+}
+
+html::-webkit-scrollbar {
+  width: 8px;
+}
+
+html::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(154, 160, 195, 0.5);
+  background-clip: content-box;
+}
+
+html::-webkit-scrollbar-thumb:hover {
+  background: rgba(230, 232, 238, 0.7);
+  background-clip: content-box;
+}
+
 .app {
   min-height: 100vh;
   display: flex;
@@ -306,7 +331,7 @@ body {
 }
 
 .screen {
-  width: min(1120px, 100%);
+  width: min(1280px, 100%);
   margin: 0 auto;
   padding: 1.5rem 1rem 3rem;
   display: flex;
@@ -390,6 +415,11 @@ body {
   align-self: flex-end;
 }
 
+.decision-actions .btn {
+  flex: 1 1 0;
+  min-width: 112px;
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -414,6 +444,66 @@ body {
 .input:focus {
   outline: 2px solid rgba(37, 99, 235, 0.6);
   outline-offset: 1px;
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  height: var(--control-height);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(11, 16, 38, 0.8);
+  overflow: hidden;
+}
+
+.stepper:focus-within {
+  outline: 2px solid rgba(37, 99, 235, 0.6);
+  outline-offset: 1px;
+}
+
+.stepper__btn {
+  width: 2.2rem;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.stepper__btn:hover:not(:disabled),
+.stepper__btn:focus-visible {
+  background: rgba(154, 160, 195, 0.18);
+  color: var(--text);
+}
+
+.stepper__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.stepper__input {
+  width: 3.5rem;
+  height: 100%;
+  padding: 0 0.25rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: center;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.stepper__input::-webkit-inner-spin-button,
+.stepper__input::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.stepper__input:focus {
+  outline: none;
 }
 
 .btn {
@@ -454,9 +544,30 @@ body {
   background: rgba(239, 68, 68, 0.14);
 }
 
+.btn--success {
+  background: rgba(16, 185, 129, 0.12);
+  color: #6ee7b7;
+  border-color: rgba(16, 185, 129, 0.45);
+}
+
+.btn--success:hover:not(:disabled),
+.btn--success:focus-visible {
+  background: rgba(16, 185, 129, 0.28);
+  color: #a7f3d0;
+  border-color: rgba(16, 185, 129, 0.85);
+}
+
 .btn--danger {
-  background: linear-gradient(90deg, #f87171, var(--danger));
-  color: var(--primary-contrast);
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+.btn--danger:hover:not(:disabled),
+.btn--danger:focus-visible {
+  background: rgba(239, 68, 68, 0.28);
+  color: #fecaca;
+  border-color: rgba(239, 68, 68, 0.85);
 }
 
 .spinner-wrap {
@@ -551,6 +662,21 @@ body {
   align-items: start;
 }
 
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.info-grid > :first-child {
+  grid-column: span 3;
+}
+
+.info-grid > :last-child {
+  grid-column: span 2;
+}
+
 .tabs {
   display: flex;
   gap: 0.5rem;
@@ -588,6 +714,28 @@ body {
 .table-wrap {
   width: 100%;
   overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(154, 160, 195, 0.5) transparent;
+}
+
+.table-wrap::-webkit-scrollbar {
+  height: 8px;
+}
+
+.table-wrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.table-wrap::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(154, 160, 195, 0.5);
+  background-clip: content-box;
+}
+
+.table-wrap::-webkit-scrollbar-thumb:hover {
+  background: rgba(230, 232, 238, 0.7);
+  background-clip: content-box;
 }
 
 .table {
@@ -611,8 +759,8 @@ body {
 }
 
 .table__reasoning {
-  min-width: 240px;
-  max-width: 360px;
+  min-width: 280px;
+  max-width: 480px;
 }
 
 .list-row {
@@ -656,6 +804,15 @@ body {
 
   .card {
     padding: 1rem;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .info-grid > :first-child,
+  .info-grid > :last-child {
+    grid-column: auto;
   }
 
   .page-header h1 {

@@ -43,7 +43,7 @@
 | `get_sales_trend` | `product_id`, `store_id`, `days=30` | `total_sold`, `avg_daily_sales`, `trend` (`rising`/`falling`/`flat`/`no_data`), `change_pct` |
 | `check_external_factors` | `store_id`, `date` (`YYYY-MM-DD`) | `weather_condition`, `is_holiday`, `demand_multiplier`, `available` |
 | `calculate_reorder_amount` | `product_id`, `store_id` | `reorder_amount`, `current_stock`, `min_stock`, `avg_daily_sales`, `lead_time_days` |
-| `calculate_margin_impact` | `product_id`, `store_id`, `new_price` | `base_cost`, `current_price`, `new_price`, `forecast_sales`, `demand_multiplier`, `expected_impact` |
+| `calculate_margin_impact` | `product_id`, `store_id`, `new_price` | `base_cost`, `current_price`, `new_price`, `forecast_sales`, `total_stock`, `at_risk_quantity`, `expected_impact` |
 
 Ошибки инструментов возвращаются словарём `{error_code, message}` и попадают
 в контекст LLM: `TOOL_NOT_ALLOWED`, `TOOL_BAD_ARGUMENTS`, `TOOL_TIMEOUT`,
@@ -58,9 +58,9 @@
 {
   "action_type": "price_change",
   "recommended_value": 149.9,
-  "reasoning": "Товар с истекающим сроком годности, спрос падает. Снижение цены уменьшит риск списания.",
+  "reasoning": "Срок истекает через 3 дня, продажи падают. Снижаем цену, чтобы успеть продать товар.",
   "confidence": 0.82,
-  "expected_impact": -320.5,
+  "expected_impact": 320.5,
   "tool_calls_used": [
     "get_stock_level",
     "get_sales_trend",
@@ -74,33 +74,46 @@
 | Поле | Требование |
 |---|---|
 | `action_type` | `price_change` \| `reorder` \| `write_off` |
-| `recommended_value` | новая цена, объём закупки или объём списания из tools |
-| `reasoning` | русский язык, 2–3 предложения, ≤ 500 символов; товар, причина, действие |
+| `recommended_value` | числом: новая цена, объём закупки или объём списания из tools; деньги — 1 знак после запятой |
+| `reasoning` | русский язык, 2–3 коротких предложения, ≤ 500 символов; для владельца магазина, без id и названий tools/полей |
 | `confidence` | `0.0..1.0` |
-| `expected_impact` | только из `calculate_margin_impact` |
+| `expected_impact` | числом, только из `calculate_margin_impact`, 1 знак после запятой |
 | `tool_calls_used` | заполняется парсером фактическими вызовами, не памятью LLM |
 
+`expected_impact` учитывает не только маржу, но и списание партий, которые
+истекают в горизонте прогноза: скидка может быть выгодной, даже если маржа на
+проданную единицу меньше.
+
 Парсер `parse_recommendation` терпим к markdown-обёртке ```` ```json ````.
-Битый JSON или невалидные поля запускают repair-retry: модели отправляется
-ошибка валидации и требование вернуть только JSON.
+Числовые поля, пришедшие объектами tools, приводит к числу и округляет деньги
+до 1 знака; `reasoning` длиннее 500 символов обрезает. Битый JSON или
+остальные невалидные поля запускают repair-retry: модели отправляется ошибка
+валидации и требование вернуть только JSON.
 
 ## 5. Цикл Tool Calling
 
 Диаграмма: `docs/diagrams/ai_tool_calling_loop.md`.
 
 1. Системный промпт + user-сообщение (товар, `store_id`, текущая дата) → LLM с whitelist tools.
-2. Если LLM вернула `tool_calls`, инструменты выполняются через `call_tool`.
-3. Результаты добавляются в историю сообщений как `role: tool`.
-4. Цикл повторяется до финального текстового ответа.
-5. Ответ парсится и валидируется; при ошибке — до 3 попыток парсинга
-   (2 дополнительных запроса с repair-промптом).
-6. `tool_calls_used` перезаписывается фактическим списком вызовов.
+2. Модель вызывает `get_stock_level`, `get_sales_trend`, `check_external_factors`,
+   `calculate_reorder_amount`, затем `calculate_margin_impact` — по одному или блоками;
+   результаты выполняются через `call_tool` и добавляются как `role: tool`.
+3. Когда числа получены, модель без инструментов возвращает финальный JSON.
+4. Ответ парсится и валидируется; при ошибке — до 3 попыток парсинга
+   (2 дополнительных запроса с repair-промптом без tools).
+5. `tool_calls_used` перезаписывается фактическим списком вызовов.
 
-Лимиты: `MAX_TOOL_ITERATIONS = 5`, `TOOL_TIMEOUT_SECONDS = 10`,
-`MAX_REPAIR_ATTEMPTS = 3`, `LLM_TIMEOUT_SECONDS = 30`, `LLM_MAX_RETRIES = 1`.
+Лимиты: `MAX_TOOL_ITERATIONS = 8`, `TOOL_TIMEOUT_SECONDS = 10`,
+`MAX_REPAIR_ATTEMPTS = 3`, `LLM_TIMEOUT_SECONDS = 30`, `LLM_MAX_RETRIES = 3`.
 Сетевые ошибки и 5xx LLM повторяет клиент; битый JSON не вызывает сетевой retry.
-Превышение итераций — `RuntimeError`; таймаут инструмента — `TOOL_TIMEOUT`
-в результате.
+`429` провайдера отдаётся как `503 LLM_RATE_LIMITED`, другие ошибки API — как
+`502 LLM_ERROR`.
+
+Расход токенов пишется в stdout API (`docker logs`) как `llm tokens` с полями
+`stage`, `prompt_tokens`, `completion_tokens`, `total_tokens`. Для Groq с
+`openai/gpt-oss-*` запросы идут с `reasoning_effort=low` и
+`include_reasoning=false`, чтобы не платить за длинные рассуждения модели. Превышение итераций — `RuntimeError`; таймаут инструмента —
+`TOOL_TIMEOUT` в результате.
 
 ## 6. Жизненный цикл рекомендации
 
@@ -112,14 +125,18 @@
 3. **Анализ.** Для каждого кандидата агент вызывает tools и получает готовые
    числа.
 4. **Сохранение.** Рекомендация пишется в `price_recommendations` со статусом
-   `pending`.
+   `pending`; если агентом выбрано «ничего не менять» (`recommended_value = 0`),
+   запись сразу получает статус `rejected`.
 5. **Решение владельца.**
    - `accept`: для `price_change` обновляется цена в `store_products` и
      создаётся запись в `price_history` с `recommendation_id`; для `reorder` и
      `write_off` меняется только статус (D-08).
    - `reject`: статус `rejected` без изменения цены (D-09).
-6. **Повторный анализ.** Учёт отклонённых рекомендаций, чтобы не предлагать
-   ту же форму повторно, — **план**, сейчас не реализован (см. `docs/TODO.md`).
+6. **Повторный анализ.** Пакетный `generate` пропускает товары, по которым в
+   магазине уже есть рекомендации, и берёт следующих кандидатов по `id` до
+   нужного числа успешных результатов; целевой анализ по `product_id` доступен
+   всегда. Учёт отклонённых как сигнала для другой формы рекомендации — **план**
+   (см. `docs/TODO.md`).
 
 ## 7. Текущее состояние и план
 

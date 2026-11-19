@@ -7,6 +7,7 @@
 import json
 from decimal import Decimal
 
+from openai import APIError
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +20,7 @@ from backend.app.models import (
 )
 from backend.app.services import wms
 from backend.app.services.ai import agent
+from backend.app.services.calculations import round_money
 
 
 class RecommendationError(Exception):
@@ -109,14 +111,15 @@ async def accept_recommendation(
                 status_code=404,
                 details={"product_id": recommendation.product_id},
             )
-        old_price = store_product.current_price
-        store_product.current_price = recommendation.recommended_value
+        old_price = round_money(store_product.current_price)
+        new_price = round_money(recommendation.recommended_value)
+        store_product.current_price = new_price
         db.add(
             PriceHistory(
                 product_id=recommendation.product_id,
                 store_id=store_id,
                 old_price=old_price,
-                new_price=recommendation.recommended_value,
+                new_price=new_price,
                 recommendation_id=recommendation.id,
             )
         )
@@ -145,7 +148,6 @@ async def select_candidates(
     *,
     store_id: int,
     product_id: int | None,
-    limit: int,
 ) -> list[int]:
     """Кандидаты: конкретный товар или алёрты по остаткам/срокам."""
     if product_id is not None:
@@ -159,14 +161,24 @@ async def select_candidates(
         return [product_id]
 
     alerts = await wms.alerts(db, store_id=store_id)
+    existing = set(
+        (
+            await db.scalars(
+                select(PriceRecommendation.product_id).where(
+                    PriceRecommendation.store_id == store_id,
+                )
+            )
+        ).all()
+    )
     seen: set[int] = set()
     candidates: list[int] = []
     for row in alerts["expiring_soon"] + alerts["low_stock"]:
         candidate = row["product_id"]
-        if candidate not in seen:
+        if candidate not in seen and candidate not in existing:
             seen.add(candidate)
             candidates.append(candidate)
-    return candidates[:limit]
+    candidates.sort()
+    return candidates
 
 
 async def generate_recommendations(
@@ -177,36 +189,64 @@ async def generate_recommendations(
     limit: int,
 ) -> list[PriceRecommendation]:
     """Проанализировать кандидатов и сохранить `pending`-рекомендации."""
-    candidates = await select_candidates(
-        db, store_id=store_id, product_id=product_id, limit=limit
-    )
+    candidates = await select_candidates(db, store_id=store_id, product_id=product_id)
     created: list[PriceRecommendation] = []
+    errors: list[RecommendationError] = []
     for candidate_id in candidates:
+        if product_id is None and len(created) >= limit:
+            break
         try:
             result = await agent.analyze_product(candidate_id, store_id, db)
         except RuntimeError as exc:
             code = "LLM_NOT_CONFIGURED" if "не настроен" in str(exc) else "LLM_ERROR"
-            raise RecommendationError(
+            err = RecommendationError(
                 code, str(exc), status_code=503 if code == "LLM_NOT_CONFIGURED" else 502
-            ) from exc
+            )
+            if product_id is not None or code == "LLM_NOT_CONFIGURED":
+                raise err from exc
+            errors.append(err)
+            continue
+        except APIError as exc:
+            if getattr(exc, "status_code", None) == 429:
+                raise RecommendationError(
+                    "LLM_RATE_LIMITED",
+                    "Лимит запросов к LLM исчерпан. Повторите попытку позже.",
+                    status_code=503,
+                ) from exc
+            err = RecommendationError(
+                "LLM_ERROR",
+                "Ошибка при обращении к LLM. Повторите попытку позже.",
+                status_code=502,
+            )
+            if product_id is not None:
+                raise err from exc
+            errors.append(err)
+            continue
         except (json.JSONDecodeError, ValidationError) as exc:
-            raise RecommendationError(
+            err = RecommendationError(
                 "LLM_INVALID_RESPONSE",
                 "LLM не вернула валидный JSON после repair-retry",
                 status_code=502,
-            ) from exc
+            )
+            if product_id is not None:
+                raise err from exc
+            errors.append(err)
+            continue
 
+        recommended_value = round_money(Decimal(str(result.recommended_value)))
         recommendation = PriceRecommendation(
             product_id=candidate_id,
             store_id=store_id,
             action_type=result.action_type,
-            recommended_value=Decimal(str(result.recommended_value)),
+            recommended_value=recommended_value,
             reasoning=result.reasoning,
             confidence=result.confidence,
-            status="pending",
-            expected_impact=Decimal(str(result.expected_impact)),
+            status=("pending" if recommended_value > 0 else "rejected"),
+            expected_impact=round_money(Decimal(str(result.expected_impact))),
         )
         db.add(recommendation)
         created.append(recommendation)
+    if product_id is None and not created and errors:
+        raise errors[0]
     await db.flush()
     return created

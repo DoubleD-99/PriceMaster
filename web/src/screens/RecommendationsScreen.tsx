@@ -17,7 +17,7 @@ import { Select } from '../components/ui/Select'
 import type { SelectOption } from '../components/ui/Select'
 import { Spinner } from '../components/ui/Spinner'
 import { productName } from '../utils/catalog'
-import { formatDateTime, formatMoney } from '../utils/format'
+import { formatDateTime, formatMoney, formatQuantity } from '../utils/format'
 import {
   ACTION_LABELS,
   STATUS_LABELS,
@@ -70,28 +70,33 @@ export function RecommendationsScreen() {
     }
   }, [status, refreshKey])
 
+  function changeLimit(delta: number) {
+    const current = Number(limit)
+    const base = Number.isFinite(current) ? current : 1
+    setLimit(String(Math.min(50, Math.max(1, base + delta))))
+  }
+
   async function handleGenerate() {
     const parsed = Number(limit)
     if (!Number.isInteger(parsed) || parsed < 1 || parsed > 50) {
       setError('Лимит должен быть целым числом от 1 до 50.')
       return
     }
-    setLoading(true)
     setBusy(true)
     setError(null)
     setNotice(null)
     try {
       const created = await generateRecommendations({ limit: parsed })
       setStatus('pending')
+      const pendingCount = created.filter((row) => row.status === 'pending').length
       setNotice(
-        created.length > 0
-          ? `Создано рекомендаций: ${created.length}.`
+        pendingCount > 0
+          ? `Создано рекомендаций: ${pendingCount}.`
           : 'Новых кандидатов для анализа нет.',
       )
       setRefreshKey((key) => key + 1)
     } catch (err) {
       setError(getErrorMessage(err))
-      setLoading(false)
     } finally {
       setBusy(false)
     }
@@ -132,20 +137,41 @@ export function RecommendationsScreen() {
               onChange={(next) => setStatus(next as RecommendationStatus | '')}
             />
           </div>
-          <label className="field">
+          <div className="field">
             <span className="field__label">Лимит анализа</span>
-            <Input
-              type="number"
-              min={1}
-              max={50}
-              step={1}
-              value={limit}
-              onChange={(event) => setLimit(event.target.value)}
-            />
-          </label>
+            <span className="stepper">
+              <button
+                type="button"
+                className="stepper__btn"
+                aria-label="Уменьшить лимит анализа"
+                disabled={Number(limit) <= 1}
+                onClick={() => changeLimit(-1)}
+              >
+                −
+              </button>
+              <Input
+                className="stepper__input"
+                type="number"
+                min={1}
+                max={50}
+                step={1}
+                value={limit}
+                onChange={(event) => setLimit(event.target.value)}
+              />
+              <button
+                type="button"
+                className="stepper__btn"
+                aria-label="Увеличить лимит анализа"
+                disabled={Number(limit) >= 50}
+                onClick={() => changeLimit(1)}
+              >
+                +
+              </button>
+            </span>
+          </div>
           <div className="field field--action">
             <Button onClick={() => void handleGenerate()} disabled={busy}>
-              {busy ? 'Анализ…' : 'Сгенерировать'}
+              {busy ? 'Анализ...' : 'Анализ'}
             </Button>
           </div>
         </div>
@@ -164,9 +190,10 @@ export function RecommendationsScreen() {
                 <tr>
                   <th>Товар</th>
                   <th>Действие</th>
+                  <th>Показатель</th>
                   <th>Значение</th>
                   <th>Обоснование</th>
-                  <th>Эффект, ₽</th>
+                  <th>Эффект</th>
                   <th>Уверенность</th>
                   <th>Статус</th>
                   <th>Создана</th>
@@ -182,24 +209,31 @@ export function RecommendationsScreen() {
                       </Link>
                     </td>
                     <td>{ACTION_LABELS[row.action_type]}</td>
+                    <td>
+                      {row.action_type === 'reorder' || row.action_type === 'write_off'
+                        ? `${formatQuantity(row.current_stock ?? 0)} шт.`
+                        : row.current_price
+                          ? `${formatMoney(row.current_price, 1)} ₽`
+                          : '-'}
+                    </td>
                     <td>{formatRecommendationValue(row)}</td>
                     <td className="table__reasoning">{row.reasoning}</td>
-                    <td>{formatMoney(row.expected_impact)}</td>
+                    <td>{formatMoney(row.expected_impact)}₽</td>
                     <td>{Math.round(row.confidence * 100)}%</td>
                     <td>{STATUS_LABELS[row.status]}</td>
                     <td>{formatDateTime(row.created_at)}</td>
                     <td>
                       {row.status === 'pending' ? (
-                        <div className="row">
+                        <div className="row decision-actions">
                           <Button
-                            variant="ghost"
+                            variant="success"
                             disabled={busyId === row.id}
                             onClick={() => void handleDecision(row.id, true)}
                           >
                             Принять
                           </Button>
                           <Button
-                            variant="ghost"
+                            variant="danger"
                             disabled={busyId === row.id}
                             onClick={() => void handleDecision(row.id, false)}
                           >

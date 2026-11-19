@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom'
 import { getErrorMessage } from '../api/errors'
 import {
   acceptRecommendation,
-  generateRecommendations,
   getInventoryAlerts,
   getSalesAnalytics,
   listProducts,
@@ -34,7 +33,6 @@ export function DashboardHome() {
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [busy, setBusy] = useState(false)
   const [busyId, setBusyId] = useState<number | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
@@ -64,27 +62,6 @@ export function DashboardHome() {
       cancelled = true
     }
   }, [refreshKey])
-
-  async function handleGenerate() {
-    setLoading(true)
-    setBusy(true)
-    setNotice(null)
-    setError(null)
-    try {
-      const created = await generateRecommendations()
-      setNotice(
-        created.length > 0
-          ? `Создано рекомендаций: ${created.length}.`
-          : 'Новых кандидатов для анализа нет.',
-      )
-      setRefreshKey((key) => key + 1)
-    } catch (err) {
-      setError(getErrorMessage(err))
-      setLoading(false)
-    } finally {
-      setBusy(false)
-    }
-  }
 
   async function handleDecision(id: number, accept: boolean) {
     setLoading(true)
@@ -132,9 +109,6 @@ export function DashboardHome() {
           >
             Обновить
           </Button>
-          <Button onClick={() => void handleGenerate()} disabled={busy}>
-            {busy ? 'Анализ…' : 'Анализ агентом'}
-          </Button>
         </div>
       </div>
       {error && <Alert type="error">{error}</Alert>}
@@ -158,7 +132,9 @@ export function DashboardHome() {
       <div className="two-column">
         <Card title={<Link to="/recommendations">Топ рекомендаций</Link>}>
           {recommendations.length === 0 ? (
-            <p className="muted">Ожидающих рекомендаций нет. Запустите анализ агентом.</p>
+            <p className="muted">
+              Ожидающих рекомендаций нет. Запустите анализ в разделе «Рекомендации».
+            </p>
           ) : (
             <ul className="list">
               {recommendations.slice(0, 3).map((recommendation) => (
@@ -172,16 +148,16 @@ export function DashboardHome() {
                       {formatRecommendationValue(recommendation)}
                     </div>
                   </div>
-                  <div className="row">
+                  <div className="row decision-actions">
                     <Button
-                      variant="ghost"
+                      variant="success"
                       disabled={busyId === recommendation.id}
                       onClick={() => void handleDecision(recommendation.id, true)}
                     >
                       Принять
                     </Button>
                     <Button
-                      variant="ghost"
+                      variant="danger"
                       disabled={busyId === recommendation.id}
                       onClick={() => void handleDecision(recommendation.id, false)}
                     >

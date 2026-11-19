@@ -83,8 +83,9 @@ PriceMaster — система агентного динамического ц�
 | GET | `/analytics/sales` | История продаж для графиков |
 
 Дополнительные эндпоинты, добавленные решением команды (не входят в исходное
-ТЗ): `POST /recommendations/{id}/reject` и `GET /inventory/alerts` — см.
-`docs/project-decision.md` D-09, D-10.
+ТЗ): `POST /recommendations/{id}/reject`, `GET /inventory/alerts`,
+`GET /products/{id}/price` и `GET /products/{id}/price-history` — см.
+`docs/project-decision.md` D-09, D-10 и `docs/TODO.md` B-18.
 
 Тела запросов, ответы и коды ошибок для рекомендаций и алертов — `docs/SDD.md` §6.4–6.5.
 

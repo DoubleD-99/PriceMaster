@@ -26,6 +26,7 @@ from backend.app.models import (
     Store,
     StoreProduct,
 )
+from backend.app.services.calculations import round_money
 from backend.app.services.external_factors import (
     demand_multiplier_for,
     is_public_holiday,
@@ -162,8 +163,8 @@ CATEGORY_HOLIDAY_DEMAND = {
 
 
 def price_for(base_cost: Decimal, category: str) -> Decimal:
-    """Розничная цена = себестоимость × наценка категории (2 знака)."""
-    return (base_cost * CATEGORY_MARKUP[category]).quantize(Decimal("0.01"))
+    """Розничная цена = себестоимость × наценка категории (1 знак)."""
+    return round_money(base_cost * CATEGORY_MARKUP[category])
 
 
 def product_demand_multiplier(day: date, product: Product) -> Decimal:
@@ -191,7 +192,7 @@ def make_products() -> list[Product]:
         Product(
             name=name,
             category=category,
-            base_cost=Decimal(base_cost),
+            base_cost=round_money(Decimal(base_cost)),
             shelf_life_days=shelf_life,
             min_stock=min_stock,
         )
@@ -223,7 +224,7 @@ def make_store_products(
                 StoreProduct(
                     store_id=store.id,
                     product_id=product.id,
-                    current_price=(base * (1 + factor)).quantize(Decimal("0.01")),
+                    current_price=round_money(base * (1 + factor)),
                     is_active=True,
                 )
             )
@@ -307,9 +308,9 @@ def make_sales(
                 noise = Decimal(str(round(rng.uniform(0.5, 1.5), 2)))
                 quantity = int(base_daily * float(multiplier) * float(noise))
                 if quantity > 0:
-                    sale_price = (
+                    sale_price = round_money(
                         price * Decimal(str(round(rng.uniform(0.98, 1.02), 4)))
-                    ).quantize(Decimal("0.01"))
+                    )
                     rows.append(
                         SalesHistory(
                             store_id=store.id,
@@ -331,25 +332,28 @@ def make_price_history(
     today: date,
     rng: random.Random | None = None,
 ) -> list[PriceHistory]:
-    """0–3 изменения цены за исторический период (лёгкие колебания ±10%)."""
+    """1–3 изменения цены за исторический период (лёгкие колебания ±10%)."""
     rng = rng or random.Random(RNG_SEED + 3)
     rows: list[PriceHistory] = []
     for store in stores:
         for product in products:
             current = prices[(store.id, product.id)]
-            for _ in range(rng.randint(0, 3)):
-                days_ago = rng.randint(1, HISTORY_DAYS)
-                old_price = (
-                    current * Decimal(str(round(rng.uniform(0.9, 1.1), 4)))
-                ).quantize(Decimal("0.01"))
+            count = rng.randint(1, 3)
+            levels = [current]
+            for _ in range(count):
+                factor = Decimal(str(round(rng.uniform(0.9, 1.1), 4)))
+                levels.append(round_money(levels[-1] * factor))
+            levels.reverse()
+            days_ago = sorted(rng.sample(range(1, HISTORY_DAYS), count), reverse=True)
+            for index, days in enumerate(days_ago):
                 rows.append(
                     PriceHistory(
                         store_id=store.id,
                         product_id=product.id,
-                        old_price=old_price,
-                        new_price=current,
+                        old_price=levels[index],
+                        new_price=levels[index + 1],
                         changed_at=datetime.combine(
-                            today - timedelta(days=days_ago),
+                            today - timedelta(days=days),
                             time(10),
                             tzinfo=UTC,
                         ),

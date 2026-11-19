@@ -14,7 +14,6 @@ import { useStoreContext } from '../stores/storeContext'
 export function AuthScreen() {
   const navigate = useNavigate()
   const login = useAuthStore((state) => state.login)
-  const storeId = useStoreContext((state) => state.storeId)
   const setStoreId = useStoreContext((state) => state.setStoreId)
   const [accessKey, setAccessKey] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -27,12 +26,8 @@ export function AuthScreen() {
     try {
       const result = await loginRequest(accessKey)
       login(result.token)
-      if (storeId !== null && !result.user_info.store_ids.includes(storeId)) {
-        setStoreId(null)
-        navigate('/select-store')
-      } else {
-        navigate('/dashboard')
-      }
+      setStoreId(null)
+      navigate('/select-store')
     } catch (err) {
       setError(getLoginErrorMessage(err))
     } finally {

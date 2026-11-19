@@ -16,10 +16,19 @@
 """
 
 from datetime import date, datetime
-from decimal import Decimal
-from typing import Any, Literal
+from decimal import ROUND_HALF_UP, Decimal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, PlainSerializer
+
+MONEY_QUANT = Decimal("0.1")
+
+
+def _round_money(value: Decimal) -> Decimal:
+    return value.quantize(MONEY_QUANT, rounding=ROUND_HALF_UP)
+
+
+Money = Annotated[Decimal, PlainSerializer(_round_money, return_type=Decimal)]
 
 # =========================
 # AUTH
@@ -69,7 +78,7 @@ class StoreOut(BaseModel):
 class ProductCreate(BaseModel):
     name: str
     category: str
-    base_cost: Decimal
+    base_cost: Money
     shelf_life_days: int
     min_stock: int = 0
 
@@ -78,7 +87,7 @@ class ProductOut(BaseModel):
     id: int
     name: str
     category: str
-    base_cost: Decimal
+    base_cost: Money
     shelf_life_days: int
     min_stock: int
 
@@ -93,7 +102,7 @@ class ProductOut(BaseModel):
 class StoreProductCreate(BaseModel):
     product_id: int
     store_id: int
-    current_price: Decimal
+    current_price: Money
     is_active: bool = True
 
 
@@ -101,8 +110,16 @@ class StoreProductOut(BaseModel):
     id: int
     product_id: int
     store_id: int
-    current_price: Decimal
+    current_price: Money
     is_active: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProductPriceOut(BaseModel):
+    product_id: int
+    store_id: int
+    current_price: Money
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -187,7 +204,7 @@ class SaleCreate(BaseModel):
     product_id: int
     store_id: int
     quantity_sold: int
-    sale_price: Decimal
+    sale_price: Money
 
 
 class SaleOut(BaseModel):
@@ -195,7 +212,7 @@ class SaleOut(BaseModel):
     product_id: int
     store_id: int
     quantity_sold: int
-    sale_price: Decimal
+    sale_price: Money
     sale_date: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -210,8 +227,8 @@ class PriceHistoryOut(BaseModel):
     id: int
     product_id: int
     store_id: int
-    old_price: Decimal
-    new_price: Decimal
+    old_price: Money
+    new_price: Money
     changed_at: datetime
     recommendation_id: int | None
 
@@ -253,11 +270,13 @@ class RecommendationOut(BaseModel):
     product_id: int
     store_id: int
     action_type: RecommendationAction
-    recommended_value: Decimal
+    recommended_value: Money
+    current_price: Money | None = None
+    current_stock: int | None = None
     reasoning: str
     confidence: float
     status: RecommendationStatus
-    expected_impact: Decimal
+    expected_impact: Money
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -292,26 +311,26 @@ class InventoryAlertsOut(BaseModel):
 
 
 class SalesSummaryOut(BaseModel):
-    total_revenue: Decimal
+    total_revenue: Money
     total_quantity: int
     sales_count: int
-    average_check: Decimal
+    average_check: Money
 
 
 class SalesByDayOut(BaseModel):
     date: date
-    revenue: Decimal
+    revenue: Money
     quantity: int
     sales_count: int
-    average_check: Decimal
+    average_check: Money
 
 
 class SalesByProductOut(BaseModel):
     product_id: int
-    revenue: Decimal
+    revenue: Money
     quantity: int
     sales_count: int
-    average_check: Decimal
+    average_check: Money
 
 
 class SalesAnalyticsOut(BaseModel):

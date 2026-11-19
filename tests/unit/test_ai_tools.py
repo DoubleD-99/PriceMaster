@@ -170,9 +170,12 @@ async def test_calculate_margin_impact(shop) -> None:
             ),
             session,
         )
-    # forecast = 1.0 x 1.2 x 30 = 36; (99.99-65) * 36 - (89.99-65) * 36 = 360
-    assert result["expected_impact"] == 360.0
-    assert result["current_price"] == 89.99
+    # new_price 100.0; forecast 36; обе партии истекают в горизонте 30 дней
+    assert result["expected_impact"] == -324.3
+    assert result["total_stock"] == 70
+    assert result["at_risk_quantity"] == 70
+    assert result["current_price"] == 90.0
+    assert result["new_price"] == 100.0
     assert result["base_cost"] == 65.0
 
 

@@ -36,6 +36,22 @@ export type InventoryItem = {
   expiry_date: string
 }
 
+export type ProductPrice = {
+  product_id: number
+  store_id: number
+  current_price: DecimalString
+}
+
+export type PriceHistoryEntry = {
+  id: number
+  product_id: number
+  store_id: number
+  old_price: DecimalString
+  new_price: DecimalString
+  changed_at: string
+  recommendation_id: number | null
+}
+
 export type ReceivingRequest = {
   product_id: number
   quantity: number
@@ -77,6 +93,8 @@ export type Recommendation = {
   store_id: number
   action_type: RecommendationAction
   recommended_value: DecimalString
+  current_price: DecimalString | null
+  current_stock: number | null
   reasoning: string
   confidence: number
   status: RecommendationStatus

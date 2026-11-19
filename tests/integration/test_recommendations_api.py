@@ -4,6 +4,7 @@ import json
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+from openai import APIError
 from sqlalchemy import select
 
 from backend.app.db.session import SessionLocal
@@ -235,6 +236,35 @@ async def test_generate_uses_pipeline_and_mock_agent(
     rows = response.json()
     assert any(row["product_id"] == product_id for row in rows)
     assert all(row["status"] == "pending" for row in rows)
+
+
+async def test_generate_rate_limit_returns_503(auth_client, shop, monkeypatch) -> None:
+    class RateLimit(APIError):
+        def __init__(self) -> None:
+            super().__init__("rate limit", request=None, body=None)
+            self.status_code = 429
+
+    async def fake_analyze(
+        product_id: int,
+        store_id: int,
+        db,
+        client=None,
+    ) -> AIRecommendationResponse:
+        raise RateLimit()
+
+    store_id = shop["store_ids"][0]
+    product_id = shop["product_ids"][0]
+    await _add_store_product(product_id, store_id, "100.00")
+    monkeypatch.setattr("backend.app.services.ai.agent.analyze_product", fake_analyze)
+
+    response = await auth_client.post(
+        "/recommendations/generate",
+        json={"limit": 1},
+        headers=_headers(store_id),
+    )
+
+    assert response.status_code == 503
+    assert response.json()["error_code"] == "LLM_RATE_LIMITED"
 
 
 async def test_generate_api_to_agent_with_mock_llm(

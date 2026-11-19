@@ -5,7 +5,7 @@ export function toNumber(value: DecimalString | number): number {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
-export function formatMoney(value: DecimalString | number, fractionDigits = 2): string {
+export function formatMoney(value: DecimalString | number, fractionDigits = 1): string {
   return new Intl.NumberFormat('ru-RU', {
     minimumFractionDigits: fractionDigits,
     maximumFractionDigits: fractionDigits,

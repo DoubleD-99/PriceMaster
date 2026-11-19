@@ -29,6 +29,16 @@ const TOOLTIP_CONTENT_STYLE = {
   boxShadow: '0 12px 30px -12px rgba(0, 0, 0, 0.6)',
 }
 const TOOLTIP_TEXT_STYLE = { color: '#0b1026' }
+const TOOLTIP_VALUE_STYLE = { color: '#2563eb', fontWeight: 600 }
+
+function formatTooltipValue(value: unknown, name: unknown) {
+  return [
+    <span key="value" style={TOOLTIP_VALUE_STYLE}>
+      {String(value)}
+    </span>,
+    String(name),
+  ]
+}
 
 export function AnalyticsScreen() {
   const [products, setProducts] = useState<Product[]>([])
@@ -165,10 +175,11 @@ export function AnalyticsScreen() {
                       <XAxis dataKey="date" tick={{ fill: '#9aa0c3', fontSize: 12 }} />
                       <YAxis tick={{ fill: '#9aa0c3', fontSize: 12 }} />
                       <Tooltip
-                    contentStyle={TOOLTIP_CONTENT_STYLE}
-                    labelStyle={TOOLTIP_TEXT_STYLE}
-                    itemStyle={TOOLTIP_TEXT_STYLE}
-                  />
+                      contentStyle={TOOLTIP_CONTENT_STYLE}
+                      labelStyle={TOOLTIP_TEXT_STYLE}
+                      itemStyle={TOOLTIP_TEXT_STYLE}
+                      formatter={formatTooltipValue}
+                    />
                       <Bar dataKey="revenue" name="Выручка, ₽" fill="#3b82f6" radius={[6, 6, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -195,10 +206,11 @@ export function AnalyticsScreen() {
                         tick={{ fill: '#9aa0c3', fontSize: 12 }}
                       />
                       <Tooltip
-                    contentStyle={TOOLTIP_CONTENT_STYLE}
-                    labelStyle={TOOLTIP_TEXT_STYLE}
-                    itemStyle={TOOLTIP_TEXT_STYLE}
-                  />
+                      contentStyle={TOOLTIP_CONTENT_STYLE}
+                      labelStyle={TOOLTIP_TEXT_STYLE}
+                      itemStyle={TOOLTIP_TEXT_STYLE}
+                      formatter={formatTooltipValue}
+                    />
                       <Bar dataKey="revenue" name="Выручка, ₽" fill="#22c55e" radius={[0, 6, 6, 0]} />
                     </BarChart>
                   </ResponsiveContainer>

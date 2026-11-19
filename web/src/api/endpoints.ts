@@ -1,7 +1,11 @@
+import axios from 'axios'
+
 import type {
   InventoryAlerts,
   InventoryItem,
+  PriceHistoryEntry,
   Product,
+  ProductPrice,
   ReceivingRequest,
   ReceivingResult,
   Recommendation,
@@ -36,6 +40,23 @@ export async function listStores(): Promise<Store[]> {
 export async function listProducts(): Promise<Product[]> {
   if (USE_MOCK) return mockApi.listProducts()
   const { data } = await api.get<Product[]>('/products')
+  return data
+}
+
+export async function getProductPrice(productId: number): Promise<ProductPrice | null> {
+  if (USE_MOCK) return mockApi.getProductPrice(productId)
+  try {
+    const { data } = await api.get<ProductPrice>(`/products/${productId}/price`)
+    return data
+  } catch (err) {
+    if (axios.isAxiosError(err) && err.response?.status === 404) return null
+    throw err
+  }
+}
+
+export async function getPriceHistory(productId: number): Promise<PriceHistoryEntry[]> {
+  if (USE_MOCK) return mockApi.getPriceHistory(productId)
+  const { data } = await api.get<PriceHistoryEntry[]>(`/products/${productId}/price-history`)
   return data
 }
 
